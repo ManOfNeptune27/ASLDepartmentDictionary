@@ -36,3 +36,36 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Admin base route
+
+This project now includes a starter admin form for teachers at `/admin`.
+
+- Route UI: `src/routes/admin/+page.svelte`
+- Server action + validation: `src/routes/admin/+page.server.ts`
+
+### What it does now
+
+- Accepts sign metadata (`word`, `book`, `unit`, parameters)
+- Supports book selection from: Signing naturally, True Way ASL, MISCELLANEOUS
+- Accepts a GIF upload (`image/gif` only)
+- Validates all required fields server-side
+- Returns a success message and payload preview
+
+### MySQL handoff point
+
+Inside `src/routes/admin/+page.server.ts`, use the `submission` object in the action to insert into MySQL.
+
+Example shape currently available:
+
+- `word`
+- `book`
+- `unit`
+- `handshape`
+- `location`
+- `movement`
+- `palmOrientation`
+- `nonManualSignals`
+- `gifFileName`
+- `gifSize`
+- `submittedAt`
