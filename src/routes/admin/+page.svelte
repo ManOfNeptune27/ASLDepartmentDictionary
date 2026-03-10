@@ -1,23 +1,66 @@
 <script lang="ts">
   let { form } = $props();
+  const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
 
   const bookOptions = [
     { value: 'Signing Naturally', label: 'Signing naturally' },
     { value: 'True Way ASL', label: 'True Way ASL' },
     { value: 'MISCELLANEOUS', label: 'MISCELLANEOUS' }
   ];
+
+  const unitOptionsByBook: Record<string, string[]> = {
+    'Signing Naturally': ['Unit 1: Greetings', 'Unit 2: Family', 'Unit 3: School'],
+    'True Way ASL': ['Unit 1: Basics', 'Unit 2: Numbers', 'Unit 3: Food'],
+    MISCELLANEOUS: []
+  };
+
+  let selectedBooks = $state<string[]>([]);
+  let selectedUnit = $state('');
+  let newUnit = $state('');
+
+  $effect(() => {
+    if (form?.values) {
+      selectedBooks = Array.isArray(form.values.books) ? form.values.books : [];
+      selectedUnit = form.values.unit ?? '';
+      newUnit = form.values.newUnit ?? '';
+    }
+  });
+
+  const availableUnits = $derived(
+    [...new Set(selectedBooks.flatMap((book) => unitOptionsByBook[book] ?? []))].sort((a, b) => a.localeCompare(b))
+  );
+  const isAddingNewUnit = $derived(selectedUnit === ADD_NEW_UNIT_VALUE);
+
+  $effect(() => {
+    if (selectedUnit && selectedUnit !== ADD_NEW_UNIT_VALUE && !availableUnits.includes(selectedUnit)) {
+      selectedUnit = '';
+    }
+  });
 </script>
 
 <main class="container py-4">
   <div class="row justify-content-center">
     <div class="col-12 col-xl-9">
-      <h2 class="h4 mb-2">Teacher Admin Upload</h2>
+      <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+        <h2 class="h4 m-0">Teacher Admin Upload</h2>
+        <a class="btn btn-sm btn-outline-secondary" href="/logout">Log Out</a>
+      </div>
       <p class="text-muted mb-4">Add a sign GIF and its ASL metadata.</p>
 
       {#if form?.success && form?.submission}
         <div class="alert alert-success" role="alert">
           <div class="fw-semibold">{form.message}</div>
-          <div class="small mt-2">Saved payload preview: {form.submission.word} ({form.submission.gifFileName})</div>
+          <div class="small mt-2">
+            Saved payload preview: {form.submission.word} — {form.submission.gloss}
+            ({form.submission.books.join(', ')} | {form.submission.unit} | {form.submission.gifFileName})
+          </div>
+        </div>
+      {/if}
+
+      {#if form?.duplicateNotice}
+        <div class="alert alert-warning" role="alert">
+          <div class="fw-semibold">Possible duplicate found</div>
+          <div class="small mt-1">{form.duplicateNotice}</div>
         </div>
       {/if}
 
@@ -36,41 +79,84 @@
           {/if}
         </div>
 
+        <div>
+          <label class="form-label" for="gloss">Gloss</label>
+          <input
+            id="gloss"
+            name="gloss"
+            class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}"
+            value={form?.values?.gloss ?? ''}
+            required
+          />
+          {#if form?.errors?.gloss}
+            <div class="invalid-feedback d-block">{form.errors.gloss}</div>
+          {/if}
+        </div>
+
         <div class="row g-3">
           <div class="col-12 col-md-6">
-            <label class="form-label" for="book">Book</label>
-            <select
-              id="book"
-              name="book"
-              class="form-select {form?.errors?.book ? 'is-invalid' : ''}"
-              required
-            >
-              <option value="">Select book</option>
-              {#each bookOptions as option}
-                <option value={option.value} selected={form?.values?.book === option.value}>{option.label}</option>
-              {/each}
-            </select>
-            {#if form?.errors?.book}
-              <div class="invalid-feedback d-block">{form.errors.book}</div>
-            {/if}
+            <fieldset>
+              <legend class="form-label d-block">Books</legend>
+              <div class="border rounded p-2 {form?.errors?.books ? 'border-danger' : ''}">
+                {#each bookOptions as option}
+                  <div class="form-check">
+                    <input
+                      id={`book-${option.value}`}
+                      name="books"
+                      type="checkbox"
+                      class="form-check-input"
+                      value={option.value}
+                      bind:group={selectedBooks}
+                    />
+                    <label class="form-check-label" for={`book-${option.value}`}>{option.label}</label>
+                  </div>
+                {/each}
+              </div>
+              {#if form?.errors?.books}
+                <div class="invalid-feedback d-block">{form.errors.books}</div>
+              {/if}
+              <div class="form-text">Select all books where this same sign appears.</div>
+            </fieldset>
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="unit">Unit</label>
-            <input
+            <select
               id="unit"
               name="unit"
-              type="number"
-              min="1"
-              step="1"
-              class="form-control {form?.errors?.unit ? 'is-invalid' : ''}"
-              value={form?.values?.unit ?? ''}
+              class="form-select {form?.errors?.unit ? 'is-invalid' : ''}"
+              bind:value={selectedUnit}
+              disabled={selectedBooks.length === 0}
               required
-            />
+            >
+              <option value="">{selectedBooks.length === 0 ? 'Select at least one book first' : 'Select unit'}</option>
+              {#each availableUnits as unitOption}
+                <option value={unitOption}>{unitOption}</option>
+              {/each}
+              <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
+            </select>
             {#if form?.errors?.unit}
               <div class="invalid-feedback d-block">{form.errors.unit}</div>
             {/if}
           </div>
         </div>
+
+        {#if isAddingNewUnit}
+          <div>
+            <label class="form-label" for="newUnit">New Unit Name</label>
+            <input
+              id="newUnit"
+              name="newUnit"
+              class="form-control {form?.errors?.newUnit ? 'is-invalid' : ''}"
+              bind:value={newUnit}
+              placeholder="Example: Unit 4: Community"
+              required
+            />
+            {#if form?.errors?.newUnit}
+              <div class="invalid-feedback d-block">{form.errors.newUnit}</div>
+            {/if}
+            <div class="form-text">Use this when the unit is not listed yet.</div>
+          </div>
+        {/if}
 
         <div class="row g-3">
           <div class="col-12 col-md-6">
@@ -151,6 +237,21 @@
           {#if form?.errors?.gif}
             <div class="invalid-feedback d-block">{form.errors.gif}</div>
           {/if}
+        </div>
+
+        <div class="form-check">
+          <input
+            id="allowDuplicate"
+            name="allowDuplicate"
+            type="checkbox"
+            class="form-check-input"
+            value="true"
+            checked={form?.values?.allowDuplicate === 'true'}
+          />
+          <label class="form-check-label" for="allowDuplicate">
+            Allow duplicate / alternate version of this sign
+          </label>
+          <div class="form-text">Use this only when the same word has a valid second version.</div>
         </div>
 
         <button type="submit" class="btn btn-primary align-self-start">Submit Entry</button>

@@ -1,9 +1,16 @@
 export type Source = 'naturally' | 'trueway' | 'miscellaneous';
 
+export type WordEntry =
+  | string
+  | {
+      word: string;
+      gloss: string;
+    };
+
 export type Unit = {
   id: string;
   name: string;
-  words: string[];
+  words: WordEntry[];
 };
 
 type SourceGroup = {
