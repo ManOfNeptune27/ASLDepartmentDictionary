@@ -41,15 +41,29 @@ You can preview the production build with `npm run preview`.
 
 This project now includes a starter admin form for teachers at `/admin`.
 
+### Teacher access
+
+- Login route: `/login`
+- Admin route protection: `/admin` redirects to `/login` when not authenticated
+- Logout route: `/logout`
+- Default local credentials (if env vars are not set):
+	- Username: `teacher`
+	- Password: `asl-teacher`
+- Override credentials via environment variables:
+	- `TEACHER_LOGIN_USER`
+	- `TEACHER_LOGIN_PASSWORD`
+
 - Route UI: `src/routes/admin/+page.svelte`
 - Server action + validation: `src/routes/admin/+page.server.ts`
 
 ### What it does now
 
-- Accepts sign metadata (`word`, `book`, `unit`, parameters)
+- Accepts sign metadata (`word`, `gloss`, `books`, `unit`, parameters)
 - Supports book selection from: Signing naturally, True Way ASL, MISCELLANEOUS
+- Provides a guided unit selector with an `+ Add a new unit` option for easier teacher input
 - Accepts a GIF upload (`image/gif` only)
 - Validates all required fields server-side
+- Warns when a submitted word already exists in another book/unit to help avoid duplicates
 - Returns a success message and payload preview
 
 ### MySQL handoff point
@@ -59,7 +73,8 @@ Inside `src/routes/admin/+page.server.ts`, use the `submission` object in the ac
 Example shape currently available:
 
 - `word`
-- `book`
+- `gloss`
+- `books`
 - `unit`
 - `handshape`
 - `location`

@@ -2,7 +2,7 @@
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
   import { fade, fly, slide } from 'svelte/transition';
-  import { sourceData, sources, type Source } from '$lib';
+  import { sourceData, sources, type Source, type WordEntry } from '$lib';
 
   type WordCard = {
     id: string;
@@ -11,6 +11,7 @@
     unitId: string;
     unitName: string;
     word: string;
+    gloss: string;
     parameters: {
       handshape: string;
       location: string;
@@ -44,16 +45,34 @@
     selectedUnitId = selectedUnitId === unitId ? null : unitId;
   }
 
+  function toWordAndGloss(entry: WordEntry) {
+    if (typeof entry === 'string') {
+      return {
+        word: entry,
+        gloss: entry.toUpperCase()
+      };
+    }
+
+    return {
+      word: entry.word,
+      gloss: entry.gloss
+    };
+  }
+
   $: visibleUnits = selectedSource ? sourceData[selectedSource].units : [];
   $: allWordCards = sources.flatMap((source) =>
     sourceData[source.id].units.flatMap((unit) =>
-      unit.words.map((word) => ({
+      unit.words.map((entry) => {
+        const { word, gloss } = toWordAndGloss(entry);
+
+        return {
         id: `${unit.id}-${word}`,
         sourceId: source.id,
         sourceLabel: source.label,
         unitId: unit.id,
         unitName: unit.name,
         word,
+        gloss,
         parameters: {
           handshape: 'Not added yet',
           location: 'Not added yet',
@@ -61,7 +80,8 @@
           palmOrientation: 'Not added yet',
           nonManualSignals: 'Not added yet'
         }
-      }))
+      };
+      })
     )
   ) as WordCard[];
   $: filteredWordCards = allWordCards
@@ -161,6 +181,7 @@
               </div>
               <div class="col-12 col-lg-6 d-flex flex-column gap-2">
                 <h3 class="h5 m-0">{selectedCard.word}</h3>
+                <div class="small">{selectedCard.gloss}</div>
                 <div class="small text-muted">{selectedCard.sourceLabel}</div>
                 <div class="small text-muted">{selectedCard.unitName}</div>
                 <hr class="my-2" />
@@ -205,6 +226,7 @@
                       GIF coming soon
                     </div>
                     <div class="word-button fw-semibold">{card.word}</div>
+                    <div class="small">{card.gloss}</div>
                     <div class="small text-muted">{card.sourceLabel}</div>
                     <div class="small text-muted">{card.unitName}</div>
                   </button>
