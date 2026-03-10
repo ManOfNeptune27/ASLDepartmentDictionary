@@ -14,28 +14,54 @@
     MISCELLANEOUS: []
   };
 
+  const PAIR_SEP = '|||';
+
   let selectedBooks = $state<string[]>([]);
-  let selectedUnit = $state('');
-  let newUnit = $state('');
+  let unitSelectionByBook = $state<Record<string, string>>({});
+  let newUnitByBook = $state<Record<string, string>>({});
 
   $effect(() => {
     if (form?.values) {
       selectedBooks = Array.isArray(form.values.books) ? form.values.books : [];
-      selectedUnit = form.values.unit ?? '';
-      newUnit = form.values.newUnit ?? '';
+      const pairs: string[] = Array.isArray(form.values.bookUnitPairs) ? form.values.bookUnitPairs : [];
+      const selMap: Record<string, string> = {};
+      const newMap: Record<string, string> = {};
+      for (const pair of pairs) {
+        const parts = pair.split(PAIR_SEP);
+        const book = parts[0];
+        const unit = parts[1] ?? '';
+        const custom = parts[2] ?? '';
+        if (book) {
+          selMap[book] = unit;
+          if (unit === ADD_NEW_UNIT_VALUE) newMap[book] = custom;
+        }
+      }
+      unitSelectionByBook = selMap;
+      newUnitByBook = newMap;
     }
   });
 
-  const availableUnits = $derived(
-    [...new Set(selectedBooks.flatMap((book) => unitOptionsByBook[book] ?? []))].sort((a, b) => a.localeCompare(b))
-  );
-  const isAddingNewUnit = $derived(selectedUnit === ADD_NEW_UNIT_VALUE);
-
+  // Clean up unit selections when a book is unchecked
   $effect(() => {
-    if (selectedUnit && selectedUnit !== ADD_NEW_UNIT_VALUE && !availableUnits.includes(selectedUnit)) {
-      selectedUnit = '';
+    const booksSet = new Set(selectedBooks);
+    const stale = Object.keys(unitSelectionByBook).filter((b) => !booksSet.has(b));
+    if (stale.length > 0) {
+      const next = { ...unitSelectionByBook };
+      for (const b of stale) delete next[b];
+      unitSelectionByBook = next;
     }
   });
+
+  // Hidden input values — one per selected book
+  const bookUnitPairs = $derived(
+    selectedBooks.map((book) => {
+      const sel = unitSelectionByBook[book] ?? '';
+      if (sel === ADD_NEW_UNIT_VALUE) {
+        return `${book}${PAIR_SEP}${ADD_NEW_UNIT_VALUE}${PAIR_SEP}${newUnitByBook[book] ?? ''}`;
+      }
+      return `${book}${PAIR_SEP}${sel}`;
+    })
+  );
 </script>
 
 <main class="container py-4">
@@ -51,8 +77,10 @@
         <div class="alert alert-success" role="alert">
           <div class="fw-semibold">{form.message}</div>
           <div class="small mt-2">
-            Saved payload preview: {form.submission.word} — {form.submission.gloss}
-            ({form.submission.books.join(', ')} | {form.submission.unit} | {form.submission.gifFileName})
+            Saved payload preview: {form.submission.word} — {form.submission.gloss} ({form.submission.gifFileName})<br />
+            {#each form.submission.bookUnitPairs as pair}
+              <span class="badge bg-secondary me-1">{pair.book} → {pair.unit}</span>
+            {/each}
           </div>
         </div>
       {/if}
@@ -93,70 +121,73 @@
           {/if}
         </div>
 
-        <div class="row g-3">
-          <div class="col-12 col-md-6">
-            <fieldset>
-              <legend class="form-label d-block">Books</legend>
-              <div class="border rounded p-2 {form?.errors?.books ? 'border-danger' : ''}">
-                {#each bookOptions as option}
-                  <div class="form-check">
-                    <input
-                      id={`book-${option.value}`}
-                      name="books"
-                      type="checkbox"
-                      class="form-check-input"
-                      value={option.value}
-                      bind:group={selectedBooks}
-                    />
-                    <label class="form-check-label" for={`book-${option.value}`}>{option.label}</label>
-                  </div>
-                {/each}
-              </div>
-              {#if form?.errors?.books}
-                <div class="invalid-feedback d-block">{form.errors.books}</div>
-              {/if}
-              <div class="form-text">Select all books where this same sign appears.</div>
-            </fieldset>
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="unit">Unit</label>
-            <select
-              id="unit"
-              name="unit"
-              class="form-select {form?.errors?.unit ? 'is-invalid' : ''}"
-              bind:value={selectedUnit}
-              disabled={selectedBooks.length === 0}
-              required
-            >
-              <option value="">{selectedBooks.length === 0 ? 'Select at least one book first' : 'Select unit'}</option>
-              {#each availableUnits as unitOption}
-                <option value={unitOption}>{unitOption}</option>
+        <div>
+          <fieldset>
+            <legend class="form-label d-block">Books</legend>
+            <div class="border rounded p-2 {form?.errors?.books ? 'border-danger' : ''}">
+              {#each bookOptions as option}
+                <div class="form-check">
+                  <input
+                    id={`book-${option.value}`}
+                    name="books"
+                    type="checkbox"
+                    class="form-check-input"
+                    value={option.value}
+                    bind:group={selectedBooks}
+                  />
+                  <label class="form-check-label" for={`book-${option.value}`}>{option.label}</label>
+                </div>
               {/each}
-              <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
-            </select>
-            {#if form?.errors?.unit}
-              <div class="invalid-feedback d-block">{form.errors.unit}</div>
+            </div>
+            {#if form?.errors?.books}
+              <div class="invalid-feedback d-block">{form.errors.books}</div>
             {/if}
-          </div>
+            <div class="form-text">Select all books where this same sign appears.</div>
+          </fieldset>
         </div>
 
-        {#if isAddingNewUnit}
+        {#if selectedBooks.length > 0}
           <div>
-            <label class="form-label" for="newUnit">New Unit Name</label>
-            <input
-              id="newUnit"
-              name="newUnit"
-              class="form-control {form?.errors?.newUnit ? 'is-invalid' : ''}"
-              bind:value={newUnit}
-              placeholder="Example: Unit 4: Community"
-              required
-            />
-            {#if form?.errors?.newUnit}
-              <div class="invalid-feedback d-block">{form.errors.newUnit}</div>
+            <p class="form-label mb-2">Units</p>
+            <div class="d-flex flex-column gap-2 {form?.errors?.bookUnitPairs ? 'is-invalid' : ''}">
+              {#each selectedBooks as book}
+                {@const bookId = book.replace(/\s+/g, '-').toLowerCase()}
+                {@const isAddingNew = (unitSelectionByBook[book] ?? '') === ADD_NEW_UNIT_VALUE}
+                <div class="border rounded p-2">
+                  <label class="form-label mb-1 fw-semibold" for={`unit-${bookId}`}>{book}</label>
+                  <select
+                    id={`unit-${bookId}`}
+                    class="form-select form-select-sm"
+                    bind:value={unitSelectionByBook[book]}
+                    required
+                  >
+                    <option value="">Select unit for {book}</option>
+                    {#each unitOptionsByBook[book] ?? [] as unitOption}
+                      <option value={unitOption}>{unitOption}</option>
+                    {/each}
+                    <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
+                  </select>
+                  {#if isAddingNew}
+                    <input
+                      class="form-control form-control-sm mt-2"
+                      bind:value={newUnitByBook[book]}
+                      placeholder="Example: Unit 4: Community"
+                      required
+                    />
+                    <div class="form-text">Enter the new unit name for {book}.</div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            {#if form?.errors?.bookUnitPairs}
+              <div class="invalid-feedback d-block">{form.errors.bookUnitPairs}</div>
             {/if}
-            <div class="form-text">Use this when the unit is not listed yet.</div>
           </div>
         {/if}
+
+        {#each bookUnitPairs as pair}
+          <input type="hidden" name="bookUnitPair" value={pair} />
+        {/each}
 
         <div class="row g-3">
           <div class="col-12 col-md-6">

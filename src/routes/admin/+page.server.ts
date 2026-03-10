@@ -27,8 +27,22 @@ export const actions: Actions = {
       .getAll('books')
       .map((value) => toText(value))
       .filter(Boolean);
-    const unit = toText(formData.get('unit'));
-    const newUnit = toText(formData.get('newUnit'));
+
+    // Parse per-book unit pairs submitted as "Book|||unit" or "Book|||__add_new_unit__|||custom"
+    const rawPairs = formData
+      .getAll('bookUnitPair')
+      .map((v) => toText(v))
+      .filter(Boolean);
+    const PAIR_SEP = '|||';
+    const bookUnitPairs: { book: string; unit: string }[] = rawPairs.map((raw) => {
+      const parts = raw.split(PAIR_SEP);
+      const book = parts[0] ?? '';
+      const unitVal = parts[1] ?? '';
+      const customUnit = parts[2] ?? '';
+      const unit = unitVal === ADD_NEW_UNIT_VALUE ? customUnit : unitVal;
+      return { book, unit };
+    });
+
     const allowDuplicate = toText(formData.get('allowDuplicate')) === 'true';
     const handshape = toText(formData.get('handshape'));
     const location = toText(formData.get('location'));
@@ -44,10 +58,13 @@ export const actions: Actions = {
     if (!gloss) errors.gloss = 'Gloss is required.';
     if (books.length === 0) errors.books = 'Select at least one book.';
 
-    if (!unit) {
-      errors.unit = 'Please select a unit.';
-    } else if (unit === ADD_NEW_UNIT_VALUE && !newUnit) {
-      errors.newUnit = 'New unit name is required.';
+    // Validate every selected book has a unit chosen
+    const missingUnits = books.filter((book) => {
+      const pair = bookUnitPairs.find((p) => p.book === book);
+      return !pair || !pair.unit.trim();
+    });
+    if (missingUnits.length > 0) {
+      errors.bookUnitPairs = `Please select a unit for: ${missingUnits.join(', ')}.`;
     }
 
     if (!handshape) errors.handshape = 'Handshape is required.';
@@ -93,8 +110,7 @@ export const actions: Actions = {
           word,
           gloss,
           books,
-          unit,
-          newUnit,
+          bookUnitPairs: rawPairs,
           handshape,
           location,
           movement,
@@ -113,8 +129,7 @@ export const actions: Actions = {
           word,
           gloss,
           books,
-          unit,
-          newUnit,
+          bookUnitPairs: rawPairs,
           handshape,
           location,
           movement,
@@ -129,7 +144,7 @@ export const actions: Actions = {
       word,
       gloss,
       books,
-      unit: unit === ADD_NEW_UNIT_VALUE ? newUnit : unit,
+      bookUnitPairs,
       handshape,
       location,
       movement,
