@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
+import { db, initDb } from '$lib/db';
+import { uploadGif } from '$lib/r2';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -28,7 +30,6 @@ export const actions: Actions = {
       .map((value) => toText(value))
       .filter(Boolean);
 
-    // Parse per-book unit pairs submitted as "Book|||unit" or "Book|||__add_new_unit__|||custom"
     const rawPairs = formData
       .getAll('bookUnitPair')
       .map((v) => toText(v))
@@ -58,7 +59,6 @@ export const actions: Actions = {
     if (!gloss) errors.gloss = 'Gloss is required.';
     if (books.length === 0) errors.books = 'Select at least one book.';
 
-    // Validate every selected book has a unit chosen
     const missingUnits = books.filter((book) => {
       const pair = bookUnitPairs.find((p) => p.book === book);
       return !pair || !pair.unit.trim();
@@ -89,7 +89,7 @@ export const actions: Actions = {
       if (locations.length > 0) {
         duplicateNotice = `This word is already present in ${locations.join('; ')}. It may already be uploaded in a different book/unit.`;
         if (!allowDuplicate) {
-          errors.word = `${duplicateNotice} Check “Allow duplicate / alternate version” to continue.`;
+          errors.word = `${duplicateNotice} Check "Allow duplicate / alternate version" to continue.`;
         }
       }
     }
@@ -140,27 +140,36 @@ export const actions: Actions = {
       });
     }
 
-    const submission = {
-      word,
-      gloss,
-      books,
-      bookUnitPairs,
-      handshape,
-      location,
-      movement,
-      palmOrientation,
-      nonManualSignals,
-      allowDuplicate,
-      gifFileName: gifFile.name,
-      gifSize: gifFile.size,
-      submittedAt: new Date().toISOString()
-    };
+    await initDb();
+
+    const gifUrl = await uploadGif(gifFile);
+
+    const result = await db.execute({
+      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, submitted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, new Date().toISOString()]
+    });
+
+    const signId = result.lastInsertRowid;
+
+    if (!signId) {
+      return fail(500, {
+        success: false,
+        errors: { general: 'Failed to save sign to database.' } as Record<string, string>
+      });
+    }
+
+    for (const pair of bookUnitPairs) {
+      await db.execute({
+        sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
+        args: [Number(signId), pair.book, pair.unit]
+      });
+    }
 
     return {
       success: true,
-      message: 'Submission received. Connect this action to your MySQL insert next.',
-      duplicateNotice,
-      submission
+      message: 'Sign submitted successfully!',
+      duplicateNotice
     };
   }
 };
