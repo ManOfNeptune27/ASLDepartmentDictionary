@@ -10,7 +10,9 @@
 
 <header class="text-white py-3" style="background-color: rgb(64, 64, 64);">
 	<div class="container-fluid d-flex align-items-center px-3">
-		<h1 class="m-0 app-title">ASL Dictionary</h1>
+		<a href="/" class="text-decoration-none text-white">
+			<h1 class="m-0 app-title">ASL Dictionary</h1>
+		</a>
 	</div>
 </header>
 

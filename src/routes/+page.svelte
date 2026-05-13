@@ -2,6 +2,7 @@
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
   import { fade, fly, slide } from "svelte/transition";
+  import { onMount } from "svelte";
   import { sourceData, sources, type Source, type WordEntry } from "$lib";
 
   type WordCard = {
@@ -125,6 +126,35 @@
     filteredWordCards.find((card: WordCard) => card.id === selectedCardId) ??
       null,
   );
+
+  function drawFirstFrame(canvas: HTMLCanvasElement, gifUrl: string) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.drawImage(img, 0, 0, 150, 150);
+    };
+    img.src = gifUrl;
+  }
+
+  function refreshThumbnails() {
+    setTimeout(() => {
+      document.querySelectorAll("canvas.gif-thumb").forEach((el) => {
+        const canvas = el as HTMLCanvasElement;
+        const gif = canvas.dataset.gif;
+        if (gif) drawFirstFrame(canvas, gif);
+      });
+    }, 50);
+  }
+
+  onMount(() => {
+    refreshThumbnails();
+  });
+
+  $effect(() => {
+    filteredWordCards;
+    refreshThumbnails();
+  });
 </script>
 
 <div class="container-fluid">
@@ -224,7 +254,7 @@
                   <img
                     src={selectedCard.gifUrl}
                     alt={selectedCard.word}
-                    class="img-fluid rounded"
+                    class="img-fluid rounded selected-gif"
                   />
                 {:else}
                   <div
@@ -300,11 +330,13 @@
                         selectedCardId === card.id ? null : card.id)}
                   >
                     {#if card.gifUrl}
-                      <img
-                        src={card.gifUrl}
-                        alt={card.word}
-                        class="img-fluid rounded"
-                      />
+                      <div class="gif-thumb-wrapper">
+                        <img
+                          src={card.gifUrl}
+                          alt={card.word}
+                          class="gif-thumb"
+                        />
+                      </div>
                     {:else}
                       <div
                         class="gif-placeholder d-flex align-items-center justify-content-center text-muted"
@@ -423,6 +455,28 @@
 
   .gif-placeholder-large {
     min-height: 240px;
+  }
+
+  .gif-thumb-wrapper {
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
+    margin: 0 auto;
+    border-radius: 0.4rem;
+  }
+
+  .gif-thumb {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    animation-play-state: paused;
+    animation-duration: 0s;
+  }
+  .selected-gif {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
   }
 
   @media (min-width: 768px) {

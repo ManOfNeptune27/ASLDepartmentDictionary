@@ -18,6 +18,7 @@ export async function initDb() {
       palm_orientation TEXT NOT NULL,
       non_manual_signals TEXT NOT NULL,
       gif_url TEXT NOT NULL,
+      gif_size INTEGER NOT NULL DEFAULT 0,
       submitted_at TEXT NOT NULL
     )
   `);

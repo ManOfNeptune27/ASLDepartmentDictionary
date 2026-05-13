@@ -159,12 +159,29 @@ export const actions: Actions = {
     }
 
     await initDb();
+
+    const STORAGE_LIMIT_BYTES = 9.8 * 1024 * 1024 * 1024;
+    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
+    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
+
+    if (totalSize + gifFile.size > STORAGE_LIMIT_BYTES) {
+      return fail(400, {
+        success: false,
+        errors: { gif: 'Storage limit reached (9.8GB). Please contact the administrator to remove old GIFs before uploading new ones.' } as Record<string, string>,
+        values: {
+          word, gloss, books, bookUnitPairs: rawPairs,
+          handshape, location, movement, palmOrientation,
+          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
+        }
+      });
+    }
+
     const gifUrl = await uploadGif(gifFile);
 
     const result = await db.execute({
-      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, submitted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, new Date().toISOString()]
+      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, gif_size, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, gifFile.size, new Date().toISOString()]
     });
 
     const signId = result.lastInsertRowid;

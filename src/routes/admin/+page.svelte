@@ -14,12 +14,12 @@
   let unitSelectionByBook = $state<Record<string, string>>({});
   let newUnitByBook = $state<Record<string, string>>({});
   let deleteSearch = $state('');
+
   const filteredSigns = $derived(
     (data?.signs ?? []).filter((sign: any) =>
       sign.word.toLowerCase().includes(deleteSearch.toLowerCase())
     )
   );
-
 
   $effect(() => {
     if (form?.values) {
@@ -223,11 +223,22 @@
       {#if filteredSigns.length === 0}
         <p class="text-muted">No signs match your search.</p>
       {:else}
-        <div class="d-flex flex-column gap-2">
+        <div class="row g-3">
           {#each filteredSigns as sign}
-            <div class="border rounded p-3 d-flex align-items-center gap-3">
-              <img src={sign.gifUrl} alt={sign.word} style="width: 60px; height: 60px; object-fit: cover;" class="rounded" />
-              <div class="flex-grow-1">
+            <div class="col-12 col-sm-6 col-xl-4">
+              <div class="border rounded p-3 h-100 d-flex flex-column gap-2">
+                {#if sign.gifUrl}
+                  <img
+                    src={sign.gifUrl}
+                    alt={sign.word}
+                    class="admin-gif-thumb rounded"
+                    loading="lazy"
+                  />
+                {:else}
+                  <div class="admin-gif-placeholder d-flex align-items-center justify-content-center text-muted rounded">
+                    No GIF
+                  </div>
+                {/if}
                 <div class="fw-semibold">{sign.word}</div>
                 <div class="small text-muted">{sign.gloss}</div>
                 <div class="small text-muted">
@@ -235,18 +246,20 @@
                     <span class="badge bg-secondary me-1">{b.book} → {b.unit}</span>
                   {/each}
                 </div>
+                <div class="mt-auto">
+                  <form method="POST" action="?/delete">
+                    <input type="hidden" name="id" value={sign.id} />
+                    <input type="hidden" name="gifUrl" value={sign.gifUrl} />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-danger w-100"
+                      onclick={(e) => { if (!confirm(`Delete ${sign.word}? This cannot be undone.`)) e.preventDefault(); }}
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </div>
               </div>
-              <form method="POST" action="?/delete">
-                <input type="hidden" name="id" value={sign.id} />
-                <input type="hidden" name="gifUrl" value={sign.gifUrl} />
-                <button
-                  type="submit"
-                  class="btn btn-sm btn-outline-danger"
-                  onclick={(e) => { if (!confirm(`Delete ${sign.word}? This cannot be undone.`)) e.preventDefault(); }}
-                >
-                  Delete
-                </button>
-              </form>
             </div>
           {/each}
         </div>
@@ -255,3 +268,17 @@
     </div>
   </div>
 </main>
+
+<style>
+  .admin-gif-thumb {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+  }
+
+  .admin-gif-placeholder {
+    width: 100%;
+    height: 150px;
+    border: 1px dashed var(--bs-border-color);
+  }
+</style>
