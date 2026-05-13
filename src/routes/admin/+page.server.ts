@@ -1,8 +1,8 @@
 import { fail } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
-import { uploadGif } from '$lib/r2';
+import { uploadGif, deleteGif } from '$lib/r2';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -19,21 +19,53 @@ function toWordText(entry: WordEntry) {
   return typeof entry === 'string' ? entry : entry.word;
 }
 
+export const load: PageServerLoad = async () => {
+  await initDb();
+
+  const signsResult = await db.execute(`
+    SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at
+    FROM signs s
+    ORDER BY s.word ASC
+  `);
+
+  const booksResult = await db.execute(`
+    SELECT sb.sign_id, sb.book, sb.unit FROM sign_books sb
+  `);
+
+  const unitsByBook = booksResult.rows.reduce((acc: Record<string, string[]>, row) => {
+    const book = String(row.book);
+    const unit = String(row.unit);
+    if (!acc[book]) acc[book] = [];
+    if (!acc[book].includes(unit)) acc[book].push(unit);
+    return acc;
+  }, {});
+
+  const signs = signsResult.rows.map((row) => {
+    const books = booksResult.rows
+      .filter((b) => b.sign_id === row.id)
+      .map((b) => ({ book: String(b.book), unit: String(b.unit) }));
+    return {
+      id: Number(row.id),
+      word: String(row.word),
+      gloss: String(row.gloss),
+      gifUrl: String(row.gif_url),
+      submittedAt: String(row.submitted_at),
+      books
+    };
+  });
+
+  return { signs, unitsByBook };
+};
+
 export const actions: Actions = {
-  default: async ({ request }) => {
+  upload: async ({ request }) => {
     const formData = await request.formData();
 
     const word = toText(formData.get('word'));
     const gloss = toText(formData.get('gloss'));
-    const books = formData
-      .getAll('books')
-      .map((value) => toText(value))
-      .filter(Boolean);
+    const books = formData.getAll('books').map((value) => toText(value)).filter(Boolean);
 
-    const rawPairs = formData
-      .getAll('bookUnitPair')
-      .map((v) => toText(v))
-      .filter(Boolean);
+    const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
     const PAIR_SEP = '|||';
     const bookUnitPairs: { book: string; unit: string }[] = rawPairs.map((raw) => {
       const parts = raw.split(PAIR_SEP);
@@ -87,7 +119,7 @@ export const actions: Actions = {
       );
 
       if (locations.length > 0) {
-        duplicateNotice = `This word is already present in ${locations.join('; ')}. It may already be uploaded in a different book/unit.`;
+        duplicateNotice = `This word is already present in ${locations.join('; ')}.`;
         if (!allowDuplicate) {
           errors.word = `${duplicateNotice} Check "Allow duplicate / alternate version" to continue.`;
         }
@@ -107,16 +139,9 @@ export const actions: Actions = {
         success: false,
         errors,
         values: {
-          word,
-          gloss,
-          books,
-          bookUnitPairs: rawPairs,
-          handshape,
-          location,
-          movement,
-          palmOrientation,
-          nonManualSignals,
-          allowDuplicate: allowDuplicate ? 'true' : ''
+          word, gloss, books, bookUnitPairs: rawPairs,
+          handshape, location, movement, palmOrientation,
+          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
         }
       });
     }
@@ -126,32 +151,40 @@ export const actions: Actions = {
         success: false,
         errors: { gif: 'A GIF file is required.' } as Record<string, string>,
         values: {
-          word,
-          gloss,
-          books,
-          bookUnitPairs: rawPairs,
-          handshape,
-          location,
-          movement,
-          palmOrientation,
-          nonManualSignals,
-          allowDuplicate: allowDuplicate ? 'true' : ''
+          word, gloss, books, bookUnitPairs: rawPairs,
+          handshape, location, movement, palmOrientation,
+          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
         }
       });
     }
 
     await initDb();
 
+    const STORAGE_LIMIT_BYTES = 9.8 * 1024 * 1024 * 1024;
+    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
+    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
+
+    if (totalSize + gifFile.size > STORAGE_LIMIT_BYTES) {
+      return fail(400, {
+        success: false,
+        errors: { gif: 'Storage limit reached (9.8GB). Please contact the administrator to remove old GIFs before uploading new ones.' } as Record<string, string>,
+        values: {
+          word, gloss, books, bookUnitPairs: rawPairs,
+          handshape, location, movement, palmOrientation,
+          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
+        }
+      });
+    }
+
     const gifUrl = await uploadGif(gifFile);
 
     const result = await db.execute({
-      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, submitted_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, new Date().toISOString()]
+      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, gif_size, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, gifFile.size, new Date().toISOString()]
     });
 
     const signId = result.lastInsertRowid;
-
     if (!signId) {
       return fail(500, {
         success: false,
@@ -174,11 +207,23 @@ export const actions: Actions = {
         word,
         gloss,
         gifFileName: gifFile.name,
-        bookUnitPairs: bookUnitPairs.map((pair) => ({
-          book: pair.book,
-          unit: pair.unit
-        }))
+        bookUnitPairs: bookUnitPairs.map((pair) => ({ book: pair.book, unit: pair.unit }))
       }
     };
+  },
+
+  delete: async ({ request }) => {
+    const formData = await request.formData();
+    const id = toText(formData.get('id'));
+    const gifUrl = toText(formData.get('gifUrl'));
+
+    if (!id) return fail(400, { success: false, errors: { general: 'Missing sign ID.' } });
+
+    await db.execute({ sql: `DELETE FROM sign_books WHERE sign_id = ?`, args: [Number(id)] });
+    await db.execute({ sql: `DELETE FROM signs WHERE id = ?`, args: [Number(id)] });
+
+    if (gifUrl) await deleteGif(gifUrl);
+
+    return { success: true, message: 'Sign deleted successfully.' };
   }
 };

@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { flip } from 'svelte/animate';
-  import { cubicOut } from 'svelte/easing';
-  import { fade, fly, slide } from 'svelte/transition';
-  import { sourceData, sources, type Source, type WordEntry } from '$lib';
+  import { flip } from "svelte/animate";
+  import { cubicOut } from "svelte/easing";
+  import { fade, fly, slide } from "svelte/transition";
+  import { onMount } from "svelte";
+  import { sourceData, sources, type Source, type WordEntry } from "$lib";
 
   type WordCard = {
     id: string;
@@ -22,27 +23,35 @@
     };
   };
 
-  type ParameterKey = 'handshape' | 'location' | 'movement' | 'palmOrientation' | 'nonManualSignals';
+  type ParameterKey =
+    | "handshape"
+    | "location"
+    | "movement"
+    | "palmOrientation"
+    | "nonManualSignals";
 
   let { data } = $props();
 
   const bookToSourceId: Record<string, Source> = {
-    'Signing Naturally': 'naturally',
-    'True Way ASL': 'trueway',
-    'MISCELLANEOUS': 'miscellaneous'
+    "Signing Naturally": "naturally",
+    "True Way ASL": "trueway",
+    MISCELLANEOUS: "miscellaneous",
   };
 
   const parameterDefinitions: Record<ParameterKey, string> = {
-    handshape: 'The specific configuration of the fingers and hand.',
-    location: 'The area on or near the body where the sign is produced, such as the forehead, chin, or neutral space.',
-    movement: 'The action of the hands, such as twisting, shaking, or moving in a specific direction.',
-    palmOrientation: 'The direction in which the palm faces.',
-    nonManualSignals: 'Facial expressions, head movements, or body language that convey grammatical information or emotion.'
+    handshape: "The specific configuration of the fingers and hand.",
+    location:
+      "The area on or near the body where the sign is produced, such as the forehead, chin, or neutral space.",
+    movement:
+      "The action of the hands, such as twisting, shaking, or moving in a specific direction.",
+    palmOrientation: "The direction in which the palm faces.",
+    nonManualSignals:
+      "Facial expressions, head movements, or body language that convey grammatical information or emotion.",
   };
 
   let selectedSource = $state<Source | null>(null);
   let selectedUnitId = $state<string | null>(null);
-  let searchQuery = $state('');
+  let searchQuery = $state("");
   let selectedCardId = $state<string | null>(null);
 
   function selectSource(source: Source) {
@@ -55,52 +64,111 @@
   }
 
   function toWordAndGloss(entry: WordEntry) {
-    if (typeof entry === 'string') {
+    if (typeof entry === "string") {
       return { word: entry, gloss: entry.toUpperCase() };
     }
     return { word: entry.word, gloss: entry.gloss };
   }
 
-  const visibleUnits = $derived(selectedSource ? sourceData[selectedSource].units : []);
+  const bookIdToName: Record<string, string> = {
+    naturally: "Signing Naturally",
+    trueway: "True Way ASL",
+    miscellaneous: "MISCELLANEOUS",
+  };
 
-  const allWordCards = $derived(data.signs.map((sign: any) => ({
-    id: String(sign.id),
-    sourceId: bookToSourceId[sign.books[0]?.book ?? ''] ?? 'miscellaneous',
-    sourceLabel: sign.books[0]?.book ?? 'MISCELLANEOUS',
-    unitId: sign.books[0]?.unit ?? 'uncategorized',
-    unitName: sign.books[0]?.unit ?? 'Uncategorized',
-    word: sign.word,
-    gloss: sign.gloss,
-    gifUrl: sign.gifUrl,
-    parameters: sign.parameters
-  })) as WordCard[]);
+  const visibleUnits = $derived(
+    selectedSource
+      ? (data?.unitsByBook?.[bookIdToName[selectedSource]] ?? [])
+      : [],
+  );
 
-  const filteredWordCards = $derived(allWordCards
-    .filter((card: WordCard) => {
-      if (selectedSource && card.sourceId !== selectedSource) return false;
-      if (selectedUnitId && card.unitId !== selectedUnitId) return false;
-      if (searchQuery.trim() && !card.word.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
-      return true;
-    })
-    .sort((a: WordCard, b: WordCard) => a.word.localeCompare(b.word, undefined, { sensitivity: 'base' }))
+  const allWordCards = $derived(
+    data.signs.map((sign: any) => ({
+      id: String(sign.id),
+      sourceId: bookToSourceId[sign.books[0]?.book ?? ""] ?? "miscellaneous",
+      sourceLabel: sign.books[0]?.book ?? "MISCELLANEOUS",
+      unitId: sign.books[0]?.unit ?? "uncategorized",
+      unitName: sign.books[0]?.unit ?? "Uncategorized",
+      word: sign.word,
+      gloss: sign.gloss,
+      gifUrl: sign.gifUrl,
+      parameters: sign.parameters,
+    })) as WordCard[],
+  );
+
+  const filteredWordCards = $derived(
+    allWordCards
+      .filter((card: WordCard) => {
+        if (selectedSource && card.sourceId !== selectedSource) return false;
+        if (selectedUnitId && card.unitId !== selectedUnitId) return false;
+        if (
+          searchQuery.trim() &&
+          !card.word.toLowerCase().includes(searchQuery.trim().toLowerCase())
+        )
+          return false;
+        return true;
+      })
+      .sort((a: WordCard, b: WordCard) =>
+        a.word.localeCompare(b.word, undefined, { sensitivity: "base" }),
+      ),
   );
 
   $effect(() => {
-    if (selectedCardId && !filteredWordCards.find((card: WordCard) => card.id === selectedCardId)) {
+    if (
+      selectedCardId &&
+      !filteredWordCards.find((card: WordCard) => card.id === selectedCardId)
+    ) {
       selectedCardId = null;
     }
   });
 
-  const selectedCard = $derived(filteredWordCards.find((card: WordCard) => card.id === selectedCardId) ?? null);
+  const selectedCard = $derived(
+    filteredWordCards.find((card: WordCard) => card.id === selectedCardId) ??
+      null,
+  );
+
+  function drawFirstFrame(canvas: HTMLCanvasElement, gifUrl: string) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.drawImage(img, 0, 0, 150, 150);
+    };
+    img.src = gifUrl;
+  }
+
+  function refreshThumbnails() {
+    setTimeout(() => {
+      document.querySelectorAll("canvas.gif-thumb").forEach((el) => {
+        const canvas = el as HTMLCanvasElement;
+        const gif = canvas.dataset.gif;
+        if (gif) drawFirstFrame(canvas, gif);
+      });
+    }, 50);
+  }
+
+  onMount(() => {
+    refreshThumbnails();
+  });
+
+  $effect(() => {
+    filteredWordCards;
+    refreshThumbnails();
+  });
 </script>
 
 <div class="container-fluid">
   <div class="row">
-    <aside class="col-12 col-md-4 col-lg-3 p-3 sidebar-panel" style="background-color: rgb(210, 210, 210);">
+    <aside
+      class="col-12 col-md-4 col-lg-3 p-3 sidebar-panel"
+      style="background-color: rgb(210, 210, 210);"
+    >
       <div class="d-flex flex-column gap-3">
         {#each sources as source (source.id)}
           <button
-            class="btn text-start nav-button {selectedSource === source.id ? 'btn-primary' : 'btn-outline-primary'}"
+            class="btn text-start nav-button {selectedSource === source.id
+              ? 'btn-primary'
+              : 'btn-outline-primary'}"
             onclick={() => selectSource(source.id)}
             transition:fade={{ duration: 250 }}
             animate:flip={{ duration: 400 }}
@@ -110,7 +178,11 @@
         {/each}
 
         {#if selectedSource}
-          <div class="unit-panel" in:slide={{ duration: 260, easing: cubicOut }} out:fade={{ duration: 180 }}>
+          <div
+            class="unit-panel"
+            in:slide={{ duration: 260, easing: cubicOut }}
+            out:fade={{ duration: 180 }}
+          >
             <hr class="my-2" />
             <p class="fw-bold mb-1 section-label">Units</p>
             {#key selectedSource}
@@ -119,14 +191,16 @@
                 in:fade={{ duration: 320, delay: 180 }}
                 out:fade={{ duration: 240 }}
               >
-                {#each visibleUnits as unit (unit.id)}
+                {#each visibleUnits as unit}
                   <button
-                    class="btn text-start nav-button {selectedUnitId === unit.name ? 'btn-dark' : 'btn-outline-dark'}"
-                    onclick={() => selectUnit(unit.name)}
+                    class="btn text-start nav-button {selectedUnitId === unit
+                      ? 'btn-dark'
+                      : 'btn-outline-dark'}"
+                    onclick={() => selectUnit(unit)}
                     in:fade={{ duration: 280, delay: 220 }}
                     out:fade={{ duration: 220 }}
                   >
-                    {unit.name}
+                    {unit}
                   </button>
                 {/each}
               </div>
@@ -137,8 +211,13 @@
     </aside>
 
     <main class="col p-4 overflow-hidden">
-      <div in:fly={{ y: 18, duration: 500, opacity: 0 }} out:fade={{ duration: 300 }}>
-        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2 mb-2">
+      <div
+        in:fly={{ y: 18, duration: 500, opacity: 0 }}
+        out:fade={{ duration: 300 }}
+      >
+        <div
+          class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2 mb-2"
+        >
           <h2 class="h4 m-0 content-title">Sign Gallery</h2>
           <input
             type="search"
@@ -150,13 +229,16 @@
         </div>
         <p class="text-muted content-subtitle mb-3">
           {#if searchQuery.trim() && selectedSource && selectedUnitId}
-            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}" in the selected source and unit.
+            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}"
+            in the selected source and unit.
           {:else if searchQuery.trim() && selectedSource}
-            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}" in the selected source.
+            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}"
+            in the selected source.
           {:else if searchQuery.trim()}
             Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}".
           {:else if selectedSource && selectedUnitId}
-            Showing {filteredWordCards.length} item(s) from the selected source and unit.
+            Showing {filteredWordCards.length} item(s) from the selected source and
+            unit.
           {:else if selectedSource}
             Showing {filteredWordCards.length} item(s) from the selected source.
           {:else}
@@ -169,9 +251,15 @@
             <div class="row g-3">
               <div class="col-12 col-lg-6">
                 {#if selectedCard.gifUrl}
-                  <img src={selectedCard.gifUrl} alt={selectedCard.word} class="img-fluid rounded" />
+                  <img
+                    src={selectedCard.gifUrl}
+                    alt={selectedCard.word}
+                    class="img-fluid rounded selected-gif"
+                  />
                 {:else}
-                  <div class="gif-placeholder gif-placeholder-large d-flex align-items-center justify-content-center text-muted">
+                  <div
+                    class="gif-placeholder gif-placeholder-large d-flex align-items-center justify-content-center text-muted"
+                  >
                     GIF coming soon
                   </div>
                 {/if}
@@ -183,23 +271,40 @@
                 <div class="small text-muted">{selectedCard.unitName}</div>
                 <hr class="my-2" />
                 <div class="small">
-                  <strong class="parameter-label" title={parameterDefinitions.handshape}>Handshape:</strong>
+                  <strong
+                    class="parameter-label"
+                    title={parameterDefinitions.handshape}>Handshape:</strong
+                  >
                   {selectedCard.parameters.handshape}
                 </div>
                 <div class="small">
-                  <strong class="parameter-label" title={parameterDefinitions.location}>Location:</strong>
+                  <strong
+                    class="parameter-label"
+                    title={parameterDefinitions.location}>Location:</strong
+                  >
                   {selectedCard.parameters.location}
                 </div>
                 <div class="small">
-                  <strong class="parameter-label" title={parameterDefinitions.movement}>Movement:</strong>
+                  <strong
+                    class="parameter-label"
+                    title={parameterDefinitions.movement}>Movement:</strong
+                  >
                   {selectedCard.parameters.movement}
                 </div>
                 <div class="small">
-                  <strong class="parameter-label" title={parameterDefinitions.palmOrientation}>Palm Orientation:</strong>
+                  <strong
+                    class="parameter-label"
+                    title={parameterDefinitions.palmOrientation}
+                    >Palm Orientation:</strong
+                  >
                   {selectedCard.parameters.palmOrientation}
                 </div>
                 <div class="small">
-                  <strong class="parameter-label" title={parameterDefinitions.nonManualSignals}>Non-Manual Signals:</strong>
+                  <strong
+                    class="parameter-label"
+                    title={parameterDefinitions.nonManualSignals}
+                    >Non-Manual Signals:</strong
+                  >
                   {selectedCard.parameters.nonManualSignals}
                 </div>
               </div>
@@ -216,13 +321,26 @@
                 <div class="col-12 col-sm-6 col-xl-4">
                   <button
                     type="button"
-                    class="border rounded p-3 h-100 d-flex flex-column gap-2 gif-card card-button {selectedCardId === card.id ? 'selected-card' : ''}"
-                    onclick={() => (selectedCardId = selectedCardId === card.id ? null : card.id)}
+                    class="border rounded p-3 h-100 d-flex flex-column gap-2 gif-card card-button {selectedCardId ===
+                    card.id
+                      ? 'selected-card'
+                      : ''}"
+                    onclick={() =>
+                      (selectedCardId =
+                        selectedCardId === card.id ? null : card.id)}
                   >
                     {#if card.gifUrl}
-                      <img src={card.gifUrl} alt={card.word} class="img-fluid rounded" />
+                      <div class="gif-thumb-wrapper">
+                        <img
+                          src={card.gifUrl}
+                          alt={card.word}
+                          class="gif-thumb"
+                        />
+                      </div>
                     {:else}
-                      <div class="gif-placeholder d-flex align-items-center justify-content-center text-muted">
+                      <div
+                        class="gif-placeholder d-flex align-items-center justify-content-center text-muted"
+                      >
                         GIF coming soon
                       </div>
                     {/if}
@@ -258,7 +376,8 @@
   .nav-button,
   .word-button {
     font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
-    padding: clamp(0.4rem, 0.35rem + 0.2vw, 0.6rem) clamp(0.6rem, 0.5rem + 0.35vw, 0.9rem);
+    padding: clamp(0.4rem, 0.35rem + 0.2vw, 0.6rem)
+      clamp(0.6rem, 0.5rem + 0.35vw, 0.9rem);
   }
 
   .gif-card {
@@ -272,7 +391,8 @@
 
   .selected-card {
     border-color: var(--bs-primary) !important;
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--bs-primary) 20%, transparent);
+    box-shadow: 0 0 0 0.2rem
+      color-mix(in srgb, var(--bs-primary) 20%, transparent);
   }
 
   .selected-sign-panel {
@@ -335,6 +455,28 @@
 
   .gif-placeholder-large {
     min-height: 240px;
+  }
+
+  .gif-thumb-wrapper {
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
+    margin: 0 auto;
+    border-radius: 0.4rem;
+  }
+
+  .gif-thumb {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    animation-play-state: paused;
+    animation-duration: 0s;
+  }
+  .selected-gif {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
   }
 
   @media (min-width: 768px) {
