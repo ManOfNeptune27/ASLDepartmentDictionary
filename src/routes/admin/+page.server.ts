@@ -169,7 +169,16 @@ export const actions: Actions = {
     return {
       success: true,
       message: 'Sign submitted successfully!',
-      duplicateNotice
+      duplicateNotice,
+      submission: {
+        word,
+        gloss,
+        gifFileName: gifFile.name,
+        bookUnitPairs: bookUnitPairs.map((pair) => ({
+          book: pair.book,
+          unit: pair.unit
+        }))
+      }
     };
   }
 };

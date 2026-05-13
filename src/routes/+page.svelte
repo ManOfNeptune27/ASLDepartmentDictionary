@@ -12,6 +12,7 @@
     unitName: string;
     word: string;
     gloss: string;
+    gifUrl: string;
     parameters: {
       handshape: string;
       location: string;
@@ -23,6 +24,14 @@
 
   type ParameterKey = 'handshape' | 'location' | 'movement' | 'palmOrientation' | 'nonManualSignals';
 
+  let { data } = $props();
+
+  const bookToSourceId: Record<string, Source> = {
+    'Signing Naturally': 'naturally',
+    'True Way ASL': 'trueway',
+    'MISCELLANEOUS': 'miscellaneous'
+  };
+
   const parameterDefinitions: Record<ParameterKey, string> = {
     handshape: 'The specific configuration of the fingers and hand.',
     location: 'The area on or near the body where the sign is produced, such as the forehead, chin, or neutral space.',
@@ -31,10 +40,10 @@
     nonManualSignals: 'Facial expressions, head movements, or body language that convey grammatical information or emotion.'
   };
 
-  let selectedSource: Source | null = null;
-  let selectedUnitId: string | null = null;
-  let searchQuery = '';
-  let selectedCardId: string | null = null;
+  let selectedSource = $state<Source | null>(null);
+  let selectedUnitId = $state<string | null>(null);
+  let searchQuery = $state('');
+  let selectedCardId = $state<string | null>(null);
 
   function selectSource(source: Source) {
     selectedSource = selectedSource === source ? null : source;
@@ -47,58 +56,42 @@
 
   function toWordAndGloss(entry: WordEntry) {
     if (typeof entry === 'string') {
-      return {
-        word: entry,
-        gloss: entry.toUpperCase()
-      };
+      return { word: entry, gloss: entry.toUpperCase() };
     }
-
-    return {
-      word: entry.word,
-      gloss: entry.gloss
-    };
+    return { word: entry.word, gloss: entry.gloss };
   }
 
-  $: visibleUnits = selectedSource ? sourceData[selectedSource].units : [];
-  $: allWordCards = sources.flatMap((source) =>
-    sourceData[source.id].units.flatMap((unit) =>
-      unit.words.map((entry) => {
-        const { word, gloss } = toWordAndGloss(entry);
+  const visibleUnits = $derived(selectedSource ? sourceData[selectedSource].units : []);
 
-        return {
-        id: `${unit.id}-${word}`,
-        sourceId: source.id,
-        sourceLabel: source.label,
-        unitId: unit.id,
-        unitName: unit.name,
-        word,
-        gloss,
-        parameters: {
-          handshape: 'Not added yet',
-          location: 'Not added yet',
-          movement: 'Not added yet',
-          palmOrientation: 'Not added yet',
-          nonManualSignals: 'Not added yet'
-        }
-      };
-      })
-    )
-  ) as WordCard[];
-  $: filteredWordCards = allWordCards
-    .filter((card) => {
+  const allWordCards = $derived(data.signs.map((sign: any) => ({
+    id: String(sign.id),
+    sourceId: bookToSourceId[sign.books[0]?.book ?? ''] ?? 'miscellaneous',
+    sourceLabel: sign.books[0]?.book ?? 'MISCELLANEOUS',
+    unitId: sign.books[0]?.unit ?? 'uncategorized',
+    unitName: sign.books[0]?.unit ?? 'Uncategorized',
+    word: sign.word,
+    gloss: sign.gloss,
+    gifUrl: sign.gifUrl,
+    parameters: sign.parameters
+  })) as WordCard[]);
+
+  const filteredWordCards = $derived(allWordCards
+    .filter((card: WordCard) => {
       if (selectedSource && card.sourceId !== selectedSource) return false;
       if (selectedUnitId && card.unitId !== selectedUnitId) return false;
       if (searchQuery.trim() && !card.word.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
       return true;
     })
-    .sort((firstCard, secondCard) => firstCard.word.localeCompare(secondCard.word, undefined, { sensitivity: 'base' }));
-  $: {
-    if (selectedCardId && !filteredWordCards.find((card) => card.id === selectedCardId)) {
+    .sort((a: WordCard, b: WordCard) => a.word.localeCompare(b.word, undefined, { sensitivity: 'base' }))
+  );
+
+  $effect(() => {
+    if (selectedCardId && !filteredWordCards.find((card: WordCard) => card.id === selectedCardId)) {
       selectedCardId = null;
     }
-  }
-  $: selectedCard = filteredWordCards.find((card) => card.id === selectedCardId) ?? null;
+  });
 
+  const selectedCard = $derived(filteredWordCards.find((card: WordCard) => card.id === selectedCardId) ?? null);
 </script>
 
 <div class="container-fluid">
@@ -108,7 +101,7 @@
         {#each sources as source (source.id)}
           <button
             class="btn text-start nav-button {selectedSource === source.id ? 'btn-primary' : 'btn-outline-primary'}"
-            on:click={() => selectSource(source.id)}
+            onclick={() => selectSource(source.id)}
             transition:fade={{ duration: 250 }}
             animate:flip={{ duration: 400 }}
           >
@@ -128,8 +121,8 @@
               >
                 {#each visibleUnits as unit (unit.id)}
                   <button
-                    class="btn text-start nav-button {selectedUnitId === unit.id ? 'btn-dark' : 'btn-outline-dark'}"
-                    on:click={() => selectUnit(unit.id)}
+                    class="btn text-start nav-button {selectedUnitId === unit.name ? 'btn-dark' : 'btn-outline-dark'}"
+                    onclick={() => selectUnit(unit.name)}
                     in:fade={{ duration: 280, delay: 220 }}
                     out:fade={{ duration: 220 }}
                   >
@@ -157,11 +150,11 @@
         </div>
         <p class="text-muted content-subtitle mb-3">
           {#if searchQuery.trim() && selectedSource && selectedUnitId}
-            Showing {filteredWordCards.length} item(s) matching “{searchQuery.trim()}” in the selected source and unit.
+            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}" in the selected source and unit.
           {:else if searchQuery.trim() && selectedSource}
-            Showing {filteredWordCards.length} item(s) matching “{searchQuery.trim()}” in the selected source.
+            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}" in the selected source.
           {:else if searchQuery.trim()}
-            Showing {filteredWordCards.length} item(s) matching “{searchQuery.trim()}”.
+            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}".
           {:else if selectedSource && selectedUnitId}
             Showing {filteredWordCards.length} item(s) from the selected source and unit.
           {:else if selectedSource}
@@ -175,9 +168,13 @@
           <div class="border rounded p-3 mb-3 selected-sign-panel">
             <div class="row g-3">
               <div class="col-12 col-lg-6">
-                <div class="gif-placeholder gif-placeholder-large d-flex align-items-center justify-content-center text-muted">
-                  GIF coming soon
-                </div>
+                {#if selectedCard.gifUrl}
+                  <img src={selectedCard.gifUrl} alt={selectedCard.word} class="img-fluid rounded" />
+                {:else}
+                  <div class="gif-placeholder gif-placeholder-large d-flex align-items-center justify-content-center text-muted">
+                    GIF coming soon
+                  </div>
+                {/if}
               </div>
               <div class="col-12 col-lg-6 d-flex flex-column gap-2">
                 <h3 class="h5 m-0">{selectedCard.word}</h3>
@@ -220,11 +217,15 @@
                   <button
                     type="button"
                     class="border rounded p-3 h-100 d-flex flex-column gap-2 gif-card card-button {selectedCardId === card.id ? 'selected-card' : ''}"
-                    on:click={() => (selectedCardId = selectedCardId === card.id ? null : card.id)}
+                    onclick={() => (selectedCardId = selectedCardId === card.id ? null : card.id)}
                   >
-                    <div class="gif-placeholder d-flex align-items-center justify-content-center text-muted">
-                      GIF coming soon
-                    </div>
+                    {#if card.gifUrl}
+                      <img src={card.gifUrl} alt={card.word} class="img-fluid rounded" />
+                    {:else}
+                      <div class="gif-placeholder d-flex align-items-center justify-content-center text-muted">
+                        GIF coming soon
+                      </div>
+                    {/if}
                     <div class="word-button fw-semibold">{card.word}</div>
                     <div class="small">{card.gloss}</div>
                     <div class="small text-muted">{card.sourceLabel}</div>
