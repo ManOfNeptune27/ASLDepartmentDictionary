@@ -16,6 +16,14 @@ export const load: PageServerLoad = async () => {
     FROM sign_books sb
   `);
 
+  const unitsByBook = booksResult.rows.reduce((acc: Record<string, string[]>, row) => {
+    const book = String(row.book);
+    const unit = String(row.unit);
+    if (!acc[book]) acc[book] = [];
+    if (!acc[book].includes(unit)) acc[book].push(unit);
+    return acc;
+  }, {});
+
   const signs = signsResult.rows.map((row) => {
     const books = booksResult.rows
       .filter((b) => b.sign_id === row.id)
@@ -37,5 +45,5 @@ export const load: PageServerLoad = async () => {
     };
   });
 
-  return { signs };
+  return { signs, unitsByBook };
 };

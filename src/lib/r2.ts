@@ -28,3 +28,12 @@ export async function uploadGif(file: File): Promise<string> {
 
   return `${R2_PUBLIC_URL}/${filename}`;
 }
+
+export async function deleteGif(gifUrl: string): Promise<void> {
+  const filename = gifUrl.split('/').pop();
+  if (!filename) return;
+
+  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${filename}`;
+
+  await r2.fetch(url, { method: 'DELETE' });
+}

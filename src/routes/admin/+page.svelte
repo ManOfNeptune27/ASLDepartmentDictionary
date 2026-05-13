@@ -1,24 +1,25 @@
 <script lang="ts">
-  let { form } = $props();
+  let { form, data }: { form: any; data: any } = $props();
   const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
 
   const bookOptions = [
-    { value: 'Signing Naturally', label: 'Signing naturally' },
+    { value: 'Signing Naturally', label: 'Signing Naturally' },
     { value: 'True Way ASL', label: 'True Way ASL' },
     { value: 'MISCELLANEOUS', label: 'MISCELLANEOUS' }
   ];
-
-  const unitOptionsByBook: Record<string, string[]> = {
-    'Signing Naturally': ['Unit 1: Greetings', 'Unit 2: Family', 'Unit 3: School'],
-    'True Way ASL': ['Unit 1: Basics', 'Unit 2: Numbers', 'Unit 3: Food'],
-    MISCELLANEOUS: []
-  };
 
   const PAIR_SEP = '|||';
 
   let selectedBooks = $state<string[]>([]);
   let unitSelectionByBook = $state<Record<string, string>>({});
   let newUnitByBook = $state<Record<string, string>>({});
+  let deleteSearch = $state('');
+  const filteredSigns = $derived(
+    (data?.signs ?? []).filter((sign: any) =>
+      sign.word.toLowerCase().includes(deleteSearch.toLowerCase())
+    )
+  );
+
 
   $effect(() => {
     if (form?.values) {
@@ -41,7 +42,6 @@
     }
   });
 
-  // Clean up unit selections when a book is unchecked
   $effect(() => {
     const booksSet = new Set(selectedBooks);
     const stale = Object.keys(unitSelectionByBook).filter((b) => !booksSet.has(b));
@@ -52,7 +52,6 @@
     }
   });
 
-  // Hidden input values — one per selected book
   const bookUnitPairs = $derived(
     selectedBooks.map((book) => {
       const sel = unitSelectionByBook[book] ?? '';
@@ -77,12 +76,20 @@
         <div class="alert alert-success" role="alert">
           <div class="fw-semibold">{form.message}</div>
           <div class="small mt-2">
-            Saved payload preview: {form.submission.word} — {form.submission.gloss} ({form.submission.gifFileName})<br />
+            Saved: {form.submission.word} — {form.submission.gloss} ({form.submission.gifFileName})<br />
             {#each form.submission.bookUnitPairs as pair}
               <span class="badge bg-secondary me-1">{pair.book} → {pair.unit}</span>
             {/each}
           </div>
         </div>
+      {/if}
+
+      {#if form?.success && !form?.submission}
+        <div class="alert alert-success" role="alert">{form.message}</div>
+      {/if}
+
+      {#if form?.errors?.general}
+        <div class="alert alert-danger" role="alert">{form.errors.general}</div>
       {/if}
 
       {#if form?.duplicateNotice}
@@ -92,33 +99,18 @@
         </div>
       {/if}
 
-      <form method="POST" enctype="multipart/form-data" class="border rounded p-3 p-md-4 d-flex flex-column gap-3">
+      <!-- Upload Form -->
+      <form method="POST" action="?/upload" enctype="multipart/form-data" class="border rounded p-3 p-md-4 d-flex flex-column gap-3 mb-5">
         <div>
           <label class="form-label" for="word">Word</label>
-          <input
-            id="word"
-            name="word"
-            class="form-control {form?.errors?.word ? 'is-invalid' : ''}"
-            value={form?.values?.word ?? ''}
-            required
-          />
-          {#if form?.errors?.word}
-            <div class="invalid-feedback d-block">{form.errors.word}</div>
-          {/if}
+          <input id="word" name="word" class="form-control {form?.errors?.word ? 'is-invalid' : ''}" value={form?.values?.word ?? ''} required />
+          {#if form?.errors?.word}<div class="invalid-feedback d-block">{form.errors.word}</div>{/if}
         </div>
 
         <div>
           <label class="form-label" for="gloss">Gloss</label>
-          <input
-            id="gloss"
-            name="gloss"
-            class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}"
-            value={form?.values?.gloss ?? ''}
-            required
-          />
-          {#if form?.errors?.gloss}
-            <div class="invalid-feedback d-block">{form.errors.gloss}</div>
-          {/if}
+          <input id="gloss" name="gloss" class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}" value={form?.values?.gloss ?? ''} required />
+          {#if form?.errors?.gloss}<div class="invalid-feedback d-block">{form.errors.gloss}</div>{/if}
         </div>
 
         <div>
@@ -127,22 +119,13 @@
             <div class="border rounded p-2 {form?.errors?.books ? 'border-danger' : ''}">
               {#each bookOptions as option}
                 <div class="form-check">
-                  <input
-                    id={`book-${option.value}`}
-                    name="books"
-                    type="checkbox"
-                    class="form-check-input"
-                    value={option.value}
-                    bind:group={selectedBooks}
-                  />
+                  <input id={`book-${option.value}`} name="books" type="checkbox" class="form-check-input" value={option.value} bind:group={selectedBooks} />
                   <label class="form-check-label" for={`book-${option.value}`}>{option.label}</label>
                 </div>
               {/each}
             </div>
-            {#if form?.errors?.books}
-              <div class="invalid-feedback d-block">{form.errors.books}</div>
-            {/if}
-            <div class="form-text">Select all books where this same sign appears.</div>
+            {#if form?.errors?.books}<div class="invalid-feedback d-block">{form.errors.books}</div>{/if}
+            <div class="form-text">Select all books where this sign appears.</div>
           </fieldset>
         </div>
 
@@ -153,35 +136,24 @@
               {#each selectedBooks as book}
                 {@const bookId = book.replace(/\s+/g, '-').toLowerCase()}
                 {@const isAddingNew = (unitSelectionByBook[book] ?? '') === ADD_NEW_UNIT_VALUE}
+                {@const existingUnits = data?.unitsByBook?.[book] ?? []}
                 <div class="border rounded p-2">
                   <label class="form-label mb-1 fw-semibold" for={`unit-${bookId}`}>{book}</label>
-                  <select
-                    id={`unit-${bookId}`}
-                    class="form-select form-select-sm"
-                    bind:value={unitSelectionByBook[book]}
-                    required
-                  >
+                  <select id={`unit-${bookId}`} class="form-select form-select-sm" bind:value={unitSelectionByBook[book]} required>
                     <option value="">Select unit for {book}</option>
-                    {#each unitOptionsByBook[book] ?? [] as unitOption}
+                    {#each existingUnits as unitOption}
                       <option value={unitOption}>{unitOption}</option>
                     {/each}
                     <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
                   </select>
                   {#if isAddingNew}
-                    <input
-                      class="form-control form-control-sm mt-2"
-                      bind:value={newUnitByBook[book]}
-                      placeholder="Example: Unit 4: Community"
-                      required
-                    />
+                    <input class="form-control form-control-sm mt-2" bind:value={newUnitByBook[book]} placeholder="Example: Unit 4: Community" required />
                     <div class="form-text">Enter the new unit name for {book}.</div>
                   {/if}
                 </div>
               {/each}
             </div>
-            {#if form?.errors?.bookUnitPairs}
-              <div class="invalid-feedback d-block">{form.errors.bookUnitPairs}</div>
-            {/if}
+            {#if form?.errors?.bookUnitPairs}<div class="invalid-feedback d-block">{form.errors.bookUnitPairs}</div>{/if}
           </div>
         {/if}
 
@@ -192,101 +164,94 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="handshape">Handshape</label>
-            <input
-              id="handshape"
-              name="handshape"
-              class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}"
-              value={form?.values?.handshape ?? ''}
-              required
-            />
-            {#if form?.errors?.handshape}
-              <div class="invalid-feedback d-block">{form.errors.handshape}</div>
-            {/if}
+            <input id="handshape" name="handshape" class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}" value={form?.values?.handshape ?? ''} required />
+            {#if form?.errors?.handshape}<div class="invalid-feedback d-block">{form.errors.handshape}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="location">Location</label>
-            <input
-              id="location"
-              name="location"
-              class="form-control {form?.errors?.location ? 'is-invalid' : ''}"
-              value={form?.values?.location ?? ''}
-              required
-            />
-            {#if form?.errors?.location}
-              <div class="invalid-feedback d-block">{form.errors.location}</div>
-            {/if}
+            <input id="location" name="location" class="form-control {form?.errors?.location ? 'is-invalid' : ''}" value={form?.values?.location ?? ''} required />
+            {#if form?.errors?.location}<div class="invalid-feedback d-block">{form.errors.location}</div>{/if}
           </div>
         </div>
 
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="movement">Movement</label>
-            <input
-              id="movement"
-              name="movement"
-              class="form-control {form?.errors?.movement ? 'is-invalid' : ''}"
-              value={form?.values?.movement ?? ''}
-              required
-            />
-            {#if form?.errors?.movement}
-              <div class="invalid-feedback d-block">{form.errors.movement}</div>
-            {/if}
+            <input id="movement" name="movement" class="form-control {form?.errors?.movement ? 'is-invalid' : ''}" value={form?.values?.movement ?? ''} required />
+            {#if form?.errors?.movement}<div class="invalid-feedback d-block">{form.errors.movement}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="palmOrientation">Palm Orientation</label>
-            <input
-              id="palmOrientation"
-              name="palmOrientation"
-              class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}"
-              value={form?.values?.palmOrientation ?? ''}
-              required
-            />
-            {#if form?.errors?.palmOrientation}
-              <div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>
-            {/if}
+            <input id="palmOrientation" name="palmOrientation" class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}" value={form?.values?.palmOrientation ?? ''} required />
+            {#if form?.errors?.palmOrientation}<div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>{/if}
           </div>
         </div>
 
         <div>
           <label class="form-label" for="nonManualSignals">Non-Manual Signals</label>
-          <input
-            id="nonManualSignals"
-            name="nonManualSignals"
-            class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}"
-            value={form?.values?.nonManualSignals ?? ''}
-            required
-          />
-          {#if form?.errors?.nonManualSignals}
-            <div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>
-          {/if}
+          <input id="nonManualSignals" name="nonManualSignals" class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}" value={form?.values?.nonManualSignals ?? ''} required />
+          {#if form?.errors?.nonManualSignals}<div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>{/if}
         </div>
 
         <div>
           <label class="form-label" for="gif">GIF Upload</label>
           <input id="gif" name="gif" type="file" accept="image/gif" class="form-control {form?.errors?.gif ? 'is-invalid' : ''}" required />
-          <div class="form-text">Only .gif files are accepted in this base version.</div>
-          {#if form?.errors?.gif}
-            <div class="invalid-feedback d-block">{form.errors.gif}</div>
-          {/if}
+          <div class="form-text">Only .gif files are accepted.</div>
+          {#if form?.errors?.gif}<div class="invalid-feedback d-block">{form.errors.gif}</div>{/if}
         </div>
 
         <div class="form-check">
-          <input
-            id="allowDuplicate"
-            name="allowDuplicate"
-            type="checkbox"
-            class="form-check-input"
-            value="true"
-            checked={form?.values?.allowDuplicate === 'true'}
-          />
-          <label class="form-check-label" for="allowDuplicate">
-            Allow duplicate / alternate version of this sign
-          </label>
+          <input id="allowDuplicate" name="allowDuplicate" type="checkbox" class="form-check-input" value="true" checked={form?.values?.allowDuplicate === 'true'} />
+          <label class="form-check-label" for="allowDuplicate">Allow duplicate / alternate version of this sign</label>
           <div class="form-text">Use this only when the same word has a valid second version.</div>
         </div>
 
         <button type="submit" class="btn btn-primary align-self-start">Submit Entry</button>
       </form>
+
+      <!-- Existing Signs -->
+      <h3 class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
+
+      <input
+        type="search"
+        class="form-control mb-3"
+        placeholder="Search signs to delete..."
+        bind:value={deleteSearch}
+        aria-label="Search signs"
+      />
+
+      {#if filteredSigns.length === 0}
+        <p class="text-muted">No signs match your search.</p>
+      {:else}
+        <div class="d-flex flex-column gap-2">
+          {#each filteredSigns as sign}
+            <div class="border rounded p-3 d-flex align-items-center gap-3">
+              <img src={sign.gifUrl} alt={sign.word} style="width: 60px; height: 60px; object-fit: cover;" class="rounded" />
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{sign.word}</div>
+                <div class="small text-muted">{sign.gloss}</div>
+                <div class="small text-muted">
+                  {#each sign.books as b}
+                    <span class="badge bg-secondary me-1">{b.book} → {b.unit}</span>
+                  {/each}
+                </div>
+              </div>
+              <form method="POST" action="?/delete">
+                <input type="hidden" name="id" value={sign.id} />
+                <input type="hidden" name="gifUrl" value={sign.gifUrl} />
+                <button
+                  type="submit"
+                  class="btn btn-sm btn-outline-danger"
+                  onclick={(e) => { if (!confirm(`Delete ${sign.word}? This cannot be undone.`)) e.preventDefault(); }}
+                >
+                  Delete
+                </button>
+              </form>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
     </div>
   </div>
 </main>
