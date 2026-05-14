@@ -3,6 +3,8 @@ import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
 import { uploadGif, deleteGif } from '$lib/r2';
+import { env } from '$env/dynamic/private';
+import { isLoggedInUserAdmin, getLoggedInUser } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -19,7 +21,7 @@ function toWordText(entry: WordEntry) {
   return typeof entry === 'string' ? entry : entry.word;
 }
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ cookies }) => {
   await initDb();
 
   const signsResult = await db.execute(`
@@ -54,7 +56,22 @@ export const load: PageServerLoad = async () => {
     };
   });
 
-  return { signs, unitsByBook };
+  const teachersResult = await db.execute(`SELECT id, username, created_at FROM teachers ORDER BY created_at ASC`);
+  const teachers = teachersResult.rows.map((row) => ({
+    id: Number(row.id),
+    username: String(row.username),
+    createdAt: String(row.created_at)
+  }));
+
+  const storageSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
+  const totalStorageBytes = Number(storageSizeResult.rows[0]?.total ?? 0);
+  const storageLimitBytes = 9.8 * 1024 * 1024 * 1024;
+  const storagePercent = Math.round((totalStorageBytes / storageLimitBytes) * 100);
+  const storageMB = (totalStorageBytes / (1024 * 1024)).toFixed(1);
+
+  const isAdmin = isLoggedInUserAdmin(cookies);
+
+  return { signs, unitsByBook, teachers, isAdmin, storagePercent, storageMB };
 };
 
 export const actions: Actions = {
@@ -225,5 +242,49 @@ export const actions: Actions = {
     if (gifUrl) await deleteGif(gifUrl);
 
     return { success: true, message: 'Sign deleted successfully.' };
+  },
+
+  addTeacher: async ({ request, cookies }) => {
+    const formData = await request.formData();
+    const username = toText(formData.get('teacherUsername'));
+    const password = toText(formData.get('teacherPassword'));
+
+    if (!username || !password) {
+      return fail(400, { success: false, errors: { teacher: 'Username and password are required.' } } as any);
+    }
+
+    if (!isLoggedInUserAdmin(cookies)) {
+      return fail(403, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
+    }
+
+    try {
+      await db.execute({
+        sql: `INSERT INTO teachers (username, password, created_at) VALUES (?, ?, ?)`,
+        args: [username, password, new Date().toISOString()]
+      });
+    } catch {
+      return fail(400, { success: false, errors: { teacher: 'That username is already taken.' } } as any);
+    }
+
+    return { success: true, message: 'Teacher account created!' };
+  },
+
+  deleteTeacher: async ({ request, cookies }) => {
+    const formData = await request.formData();
+    const id = toText(formData.get('teacherId'));
+
+    if (!id) return fail(400, { success: false, errors: { teacher: 'Missing teacher ID.' } });
+
+    if (!isLoggedInUserAdmin(cookies)) {
+      return fail(403, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
+    }
+
+    await db.execute({
+      sql: `DELETE FROM teachers WHERE id = ?`,
+      args: [Number(id)]
+    });
+
+    return { success: true, message: 'Teacher account removed.' };
   }
+
 };

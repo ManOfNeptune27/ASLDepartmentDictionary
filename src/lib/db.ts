@@ -33,3 +33,12 @@ export async function initDb() {
     )
   `);
 }
+
+await db.execute(`
+    CREATE TABLE IF NOT EXISTS teachers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);

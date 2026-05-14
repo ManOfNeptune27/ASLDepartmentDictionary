@@ -30,14 +30,14 @@ export const actions: Actions = {
       });
     }
 
-    if (!verifyTeacherCredentials(username, password)) {
+    if (!await verifyTeacherCredentials(username, password)) {
       return fail(401, {
         error: 'Invalid login. Please check your teacher credentials.',
         values: { username, next }
       });
     }
 
-    setTeacherAuthCookie(cookies);
+    setTeacherAuthCookie(cookies, username);
     redirect(303, next);
   }
 };
