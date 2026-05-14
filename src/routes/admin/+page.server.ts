@@ -4,8 +4,14 @@ import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
 import { uploadGif, deleteGif } from '$lib/r2';
 import { env } from '$env/dynamic/private';
-import { isLoggedInUserAdmin, getLoggedInUser } from '$lib/server/auth';
-import { isTeacherAuthenticated, isLoggedInUserAdmin } from '$lib/server/auth';
+//import { isLoggedInUserAdmin, getLoggedInUser } from '$lib/server/auth';
+//import { isTeacherAuthenticated, isLoggedInUserAdmin } from '$lib/server/auth';
+
+import { 
+  isLoggedInUserAdmin, 
+  getLoggedInUser, 
+  isTeacherAuthenticated 
+} from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
