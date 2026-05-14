@@ -5,6 +5,7 @@ import { db, initDb } from '$lib/db';
 import { uploadGif, deleteGif } from '$lib/r2';
 import { env } from '$env/dynamic/private';
 import { isLoggedInUserAdmin, getLoggedInUser } from '$lib/server/auth';
+import { isTeacherAuthenticated, isLoggedInUserAdmin } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -76,6 +77,12 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 export const actions: Actions = {
   upload: async ({ request }) => {
+
+    if (!isTeacherAuthenticated(cookies)) {
+    return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+  }
+
+
     const formData = await request.formData();
 
     const word = toText(formData.get('word'));
@@ -103,6 +110,8 @@ export const actions: Actions = {
     let gifFile: File | null = null;
 
     const errors: Record<string, string> = {};
+
+
 
     if (!word) errors.word = 'Word is required.';
     if (!gloss) errors.gloss = 'Gloss is required.';
@@ -230,6 +239,10 @@ export const actions: Actions = {
   },
 
   delete: async ({ request }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+    return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+  }
+
     const formData = await request.formData();
     const id = toText(formData.get('id'));
     const gifUrl = toText(formData.get('gifUrl'));
@@ -245,6 +258,11 @@ export const actions: Actions = {
   },
 
   addTeacher: async ({ request, cookies }) => {
+
+    if (!isTeacherAuthenticated(cookies) || !isLoggedInUserAdmin(cookies)) {
+    return fail(401, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
+  }
+
     const formData = await request.formData();
     const username = toText(formData.get('teacherUsername'));
     const password = toText(formData.get('teacherPassword'));
@@ -270,6 +288,11 @@ export const actions: Actions = {
   },
 
   deleteTeacher: async ({ request, cookies }) => {
+
+    if (!isTeacherAuthenticated(cookies) || !isLoggedInUserAdmin(cookies)) {
+    return fail(401, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
+  }
+
     const formData = await request.formData();
     const id = toText(formData.get('teacherId'));
 
