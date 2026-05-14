@@ -6,6 +6,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6454601651628271" crossorigin="anonymous"></script>
 </svelte:head>
 
 <header class="text-white py-3" style="background-color: rgb(64, 64, 64);">
@@ -17,6 +18,16 @@
 </header>
 
 {@render children()}
+
+<footer class="text-center py-3 mt-4 border-top">
+	<ins class="adsbygoogle"
+		style="display:block"
+		data-ad-client="ca-pub-6454601651628271"
+		data-ad-slot="auto"
+		data-ad-format="auto"
+		data-full-width-responsive="true">
+	</ins>
+</footer>
 
 <style>
 	.app-title {
