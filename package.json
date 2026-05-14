@@ -22,6 +22,7 @@
 	},
 	"dependencies": {
 		"@libsql/client": "^0.17.3",
+		"@sveltejs/adapter-vercel": "^6.3.3",
 		"aws4fetch": "^1.0.20"
 	}
 }
