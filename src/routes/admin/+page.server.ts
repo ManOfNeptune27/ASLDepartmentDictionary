@@ -3,15 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
 import { uploadGif, deleteGif } from '$lib/r2';
-import { env } from '$env/dynamic/private';
-//import { isLoggedInUserAdmin, getLoggedInUser } from '$lib/server/auth';
-//import { isTeacherAuthenticated, isLoggedInUserAdmin } from '$lib/server/auth';
-
-import { 
-  isLoggedInUserAdmin, 
-  getLoggedInUser, 
-  isTeacherAuthenticated 
-} from '$lib/server/auth';
+import { isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -82,12 +74,10 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-  upload: async ({ request }) => {
-
+  upload: async ({ request, cookies }) => {
     if (!isTeacherAuthenticated(cookies)) {
-    return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
-  }
-
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
 
     const formData = await request.formData();
 
@@ -116,8 +106,6 @@ export const actions: Actions = {
     let gifFile: File | null = null;
 
     const errors: Record<string, string> = {};
-
-
 
     if (!word) errors.word = 'Word is required.';
     if (!gloss) errors.gloss = 'Gloss is required.';
@@ -244,10 +232,10 @@ export const actions: Actions = {
     };
   },
 
-  delete: async ({ request }) => {
+  delete: async ({ request, cookies }) => {
     if (!isTeacherAuthenticated(cookies)) {
-    return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
-  }
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
 
     const formData = await request.formData();
     const id = toText(formData.get('id'));
@@ -264,10 +252,9 @@ export const actions: Actions = {
   },
 
   addTeacher: async ({ request, cookies }) => {
-
     if (!isTeacherAuthenticated(cookies) || !isLoggedInUserAdmin(cookies)) {
-    return fail(401, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
-  }
+      return fail(401, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
+    }
 
     const formData = await request.formData();
     const username = toText(formData.get('teacherUsername'));
@@ -275,10 +262,6 @@ export const actions: Actions = {
 
     if (!username || !password) {
       return fail(400, { success: false, errors: { teacher: 'Username and password are required.' } } as any);
-    }
-
-    if (!isLoggedInUserAdmin(cookies)) {
-      return fail(403, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
     }
 
     try {
@@ -294,19 +277,14 @@ export const actions: Actions = {
   },
 
   deleteTeacher: async ({ request, cookies }) => {
-
     if (!isTeacherAuthenticated(cookies) || !isLoggedInUserAdmin(cookies)) {
-    return fail(401, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
-  }
+      return fail(401, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
+    }
 
     const formData = await request.formData();
     const id = toText(formData.get('teacherId'));
 
     if (!id) return fail(400, { success: false, errors: { teacher: 'Missing teacher ID.' } });
-
-    if (!isLoggedInUserAdmin(cookies)) {
-      return fail(403, { success: false, errors: { teacher: 'Only the admin can manage teacher accounts.' } } as any);
-    }
 
     await db.execute({
       sql: `DELETE FROM teachers WHERE id = ?`,
@@ -315,5 +293,4 @@ export const actions: Actions = {
 
     return { success: true, message: 'Teacher account removed.' };
   }
-
 };
