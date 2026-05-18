@@ -14,6 +14,8 @@
   let unitSelectionByBook = $state<Record<string, string>>({});
   let newUnitByBook = $state<Record<string, string>>({});
   let deleteSearch = $state("");
+  let uploading = $state(false);
+  let uploadError = $state("");
 
   const filteredSigns = $derived(
     (data?.signs ?? []).filter((sign: any) =>
@@ -65,6 +67,64 @@
       return `${book}${PAIR_SEP}${sel}`;
     }),
   );
+
+  async function handleSubmit(e: SubmitEvent) {
+    e.preventDefault();
+    uploadError = "";
+
+    const formEl = e.target as HTMLFormElement;
+    const formData = new FormData(formEl);
+    const gifFile = formData.get("gif") as File;
+
+    if (!gifFile || gifFile.size === 0) {
+      uploadError = "Please select a GIF file.";
+      return;
+    }
+
+    uploading = true;
+
+    try {
+      const presignRes = await fetch(`/api/presign?filename=${encodeURIComponent(gifFile.name)}`);
+      const { uploadUrl, publicUrl, error } = await presignRes.json();
+
+      if (error) {
+        uploadError = error;
+        uploading = false;
+        return;
+      }
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "image/gif" },
+        body: gifFile,
+      });
+
+      if (!uploadRes.ok) {
+        uploadError = "Failed to upload GIF. Please try again.";
+        uploading = false;
+        return;
+      }
+
+      formData.delete("gif");
+      formData.set("gifUrl", publicUrl);
+      formData.set("gifSize", String(gifFile.size));
+
+      const submitRes = await fetch("?/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (submitRes.ok) {
+        window.location.reload();
+      } else {
+        uploadError = "Failed to save sign. Please try again.";
+      }
+    } catch {
+      uploadError = "Something went wrong. Please try again.";
+    }
+
+    uploading = false;
+  }
 </script>
 
 <main class="container py-4">
@@ -101,12 +161,9 @@
         <div class="alert alert-success" role="alert">
           <div class="fw-semibold">{form.message}</div>
           <div class="small mt-2">
-            Saved: {form.submission.word} — {form.submission.gloss} ({form
-              .submission.gifFileName})<br />
+            Saved: {form.submission.word} — {form.submission.gloss} ({form.submission.gifFileName})<br />
             {#each form.submission.bookUnitPairs as pair}
-              <span class="badge bg-secondary me-1"
-                >{pair.book} → {pair.unit}</span
-              >
+              <span class="badge bg-secondary me-1">{pair.book} → {pair.unit}</span>
             {/each}
           </div>
         </div>
@@ -139,36 +196,19 @@
           {/if}
 
           <!-- Add Teacher Form -->
-          <form
-            method="POST"
-            action="?/addTeacher"
-            class="mb-4 d-flex flex-column gap-3"
-          >
+          <form method="POST" action="?/addTeacher" class="mb-4 d-flex flex-column gap-3">
             <h4 class="h6 m-0">Add New Teacher</h4>
             <div class="row g-3">
               <div class="col-12 col-md-6">
                 <label class="form-label" for="teacherUsername">Username</label>
-                <input
-                  id="teacherUsername"
-                  name="teacherUsername"
-                  class="form-control"
-                  required
-                />
+                <input id="teacherUsername" name="teacherUsername" class="form-control" required />
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label" for="teacherPassword">Password</label>
-                <input
-                  id="teacherPassword"
-                  name="teacherPassword"
-                  type="password"
-                  class="form-control"
-                  required
-                />
+                <input id="teacherPassword" name="teacherPassword" type="password" class="form-control" required />
               </div>
             </div>
-            <button type="submit" class="btn btn-success align-self-start"
-              >Add Teacher</button
-            >
+            <button type="submit" class="btn btn-success align-self-start">Add Teacher</button>
           </form>
 
           <!-- Teacher List -->
@@ -177,9 +217,7 @@
           {:else}
             <div class="d-flex flex-column gap-2">
               {#each data.teachers as teacher}
-                <div
-                  class="border rounded p-3 d-flex align-items-center justify-content-between gap-3"
-                >
+                <div class="border rounded p-3 d-flex align-items-center justify-content-between gap-3">
                   <div>
                     <div class="fw-semibold">{teacher.username}</div>
                     <div class="small text-muted">
@@ -192,11 +230,7 @@
                       type="submit"
                       class="btn btn-sm btn-outline-danger"
                       onclick={(e) => {
-                        if (
-                          !confirm(
-                            `Remove ${teacher.username}? They will no longer be able to log in.`,
-                          )
-                        )
+                        if (!confirm(`Remove ${teacher.username}? They will no longer be able to log in.`))
                           e.preventDefault();
                       }}
                     >
@@ -212,8 +246,7 @@
 
       <!-- Upload Form -->
       <form
-        method="POST"
-        action="?/upload"
+        onsubmit={handleSubmit}
         enctype="multipart/form-data"
         class="border rounded p-3 p-md-4 d-flex flex-column gap-3 mb-5"
       >
@@ -226,9 +259,7 @@
             value={form?.values?.word ?? ""}
             required
           />
-          {#if form?.errors?.word}<div class="invalid-feedback d-block">
-              {form.errors.word}
-            </div>{/if}
+          {#if form?.errors?.word}<div class="invalid-feedback d-block">{form.errors.word}</div>{/if}
         </div>
 
         <div>
@@ -240,19 +271,13 @@
             value={form?.values?.gloss ?? ""}
             required
           />
-          {#if form?.errors?.gloss}<div class="invalid-feedback d-block">
-              {form.errors.gloss}
-            </div>{/if}
+          {#if form?.errors?.gloss}<div class="invalid-feedback d-block">{form.errors.gloss}</div>{/if}
         </div>
 
         <div>
           <fieldset>
             <legend class="form-label d-block">Books</legend>
-            <div
-              class="border rounded p-2 {form?.errors?.books
-                ? 'border-danger'
-                : ''}"
-            >
+            <div class="border rounded p-2 {form?.errors?.books ? 'border-danger' : ''}">
               {#each bookOptions as option}
                 <div class="form-check">
                   <input
@@ -263,45 +288,26 @@
                     value={option.value}
                     bind:group={selectedBooks}
                   />
-                  <label class="form-check-label" for={`book-${option.value}`}
-                    >{option.label}</label
-                  >
+                  <label class="form-check-label" for={`book-${option.value}`}>{option.label}</label>
                 </div>
               {/each}
             </div>
-            {#if form?.errors?.books}<div class="invalid-feedback d-block">
-                {form.errors.books}
-              </div>{/if}
-            <div class="form-text">
-              Select all books where this sign appears.
-            </div>
+            {#if form?.errors?.books}<div class="invalid-feedback d-block">{form.errors.books}</div>{/if}
+            <div class="form-text">Select all books where this sign appears.</div>
           </fieldset>
         </div>
 
         {#if selectedBooks.length > 0}
           <div>
             <p class="form-label mb-2">Units</p>
-            <div
-              class="d-flex flex-column gap-2 {form?.errors?.bookUnitPairs
-                ? 'is-invalid'
-                : ''}"
-            >
+            <div class="d-flex flex-column gap-2 {form?.errors?.bookUnitPairs ? 'is-invalid' : ''}">
               {#each selectedBooks as book}
                 {@const bookId = book.replace(/\s+/g, "-").toLowerCase()}
-                {@const isAddingNew =
-                  (unitSelectionByBook[book] ?? "") === ADD_NEW_UNIT_VALUE}
+                {@const isAddingNew = (unitSelectionByBook[book] ?? "") === ADD_NEW_UNIT_VALUE}
                 {@const existingUnits = data?.unitsByBook?.[book] ?? []}
                 <div class="border rounded p-2">
-                  <label
-                    class="form-label mb-1 fw-semibold"
-                    for={`unit-${bookId}`}>{book}</label
-                  >
-                  <select
-                    id={`unit-${bookId}`}
-                    class="form-select form-select-sm"
-                    bind:value={unitSelectionByBook[book]}
-                    required
-                  >
+                  <label class="form-label mb-1 fw-semibold" for={`unit-${bookId}`}>{book}</label>
+                  <select id={`unit-${bookId}`} class="form-select form-select-sm" bind:value={unitSelectionByBook[book]} required>
                     <option value="">Select unit for {book}</option>
                     {#each existingUnits as unitOption}
                       <option value={unitOption}>{unitOption}</option>
@@ -315,18 +321,12 @@
                       placeholder="Example: Unit 4: Community"
                       required
                     />
-                    <div class="form-text">
-                      Enter the new unit name for {book}.
-                    </div>
+                    <div class="form-text">Enter the new unit name for {book}.</div>
                   {/if}
                 </div>
               {/each}
             </div>
-            {#if form?.errors?.bookUnitPairs}<div
-                class="invalid-feedback d-block"
-              >
-                {form.errors.bookUnitPairs}
-              </div>{/if}
+            {#if form?.errors?.bookUnitPairs}<div class="invalid-feedback d-block">{form.errors.bookUnitPairs}</div>{/if}
           </div>
         {/if}
 
@@ -344,9 +344,7 @@
               value={form?.values?.handshape ?? ""}
               required
             />
-            {#if form?.errors?.handshape}<div class="invalid-feedback d-block">
-                {form.errors.handshape}
-              </div>{/if}
+            {#if form?.errors?.handshape}<div class="invalid-feedback d-block">{form.errors.handshape}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="location">Location</label>
@@ -357,9 +355,7 @@
               value={form?.values?.location ?? ""}
               required
             />
-            {#if form?.errors?.location}<div class="invalid-feedback d-block">
-                {form.errors.location}
-              </div>{/if}
+            {#if form?.errors?.location}<div class="invalid-feedback d-block">{form.errors.location}</div>{/if}
           </div>
         </div>
 
@@ -373,49 +369,31 @@
               value={form?.values?.movement ?? ""}
               required
             />
-            {#if form?.errors?.movement}<div class="invalid-feedback d-block">
-                {form.errors.movement}
-              </div>{/if}
+            {#if form?.errors?.movement}<div class="invalid-feedback d-block">{form.errors.movement}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label" for="palmOrientation"
-              >Palm Orientation</label
-            >
+            <label class="form-label" for="palmOrientation">Palm Orientation</label>
             <input
               id="palmOrientation"
               name="palmOrientation"
-              class="form-control {form?.errors?.palmOrientation
-                ? 'is-invalid'
-                : ''}"
+              class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}"
               value={form?.values?.palmOrientation ?? ""}
               required
             />
-            {#if form?.errors?.palmOrientation}<div
-                class="invalid-feedback d-block"
-              >
-                {form.errors.palmOrientation}
-              </div>{/if}
+            {#if form?.errors?.palmOrientation}<div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>{/if}
           </div>
         </div>
 
         <div>
-          <label class="form-label" for="nonManualSignals"
-            >Non-Manual Signals</label
-          >
+          <label class="form-label" for="nonManualSignals">Non-Manual Signals</label>
           <input
             id="nonManualSignals"
             name="nonManualSignals"
-            class="form-control {form?.errors?.nonManualSignals
-              ? 'is-invalid'
-              : ''}"
+            class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}"
             value={form?.values?.nonManualSignals ?? ""}
             required
           />
-          {#if form?.errors?.nonManualSignals}<div
-              class="invalid-feedback d-block"
-            >
-              {form.errors.nonManualSignals}
-            </div>{/if}
+          {#if form?.errors?.nonManualSignals}<div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>{/if}
         </div>
 
         <div>
@@ -425,13 +403,12 @@
             name="gif"
             type="file"
             accept="image/gif"
-            class="form-control {form?.errors?.gif ? 'is-invalid' : ''}"
+            class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}"
             required
           />
           <div class="form-text">Only .gif files are accepted.</div>
-          {#if form?.errors?.gif}<div class="invalid-feedback d-block">
-              {form.errors.gif}
-            </div>{/if}
+          {#if form?.errors?.gif}<div class="invalid-feedback d-block">{form.errors.gif}</div>{/if}
+          {#if uploadError}<div class="invalid-feedback d-block">{uploadError}</div>{/if}
         </div>
 
         <div class="form-check">
@@ -443,17 +420,13 @@
             value="true"
             checked={form?.values?.allowDuplicate === "true"}
           />
-          <label class="form-check-label" for="allowDuplicate"
-            >Allow duplicate / alternate version of this sign</label
-          >
-          <div class="form-text">
-            Use this only when the same word has a valid second version.
-          </div>
+          <label class="form-check-label" for="allowDuplicate">Allow duplicate / alternate version of this sign</label>
+          <div class="form-text">Use this only when the same word has a valid second version.</div>
         </div>
 
-        <button type="submit" class="btn btn-primary align-self-start"
-          >Submit Entry</button
-        >
+        <button type="submit" class="btn btn-primary align-self-start" disabled={uploading}>
+          {uploading ? "Uploading..." : "Submit Entry"}
+        </button>
       </form>
 
       <!-- Existing Signs -->
@@ -475,16 +448,9 @@
             <div class="col-12 col-sm-6 col-xl-4">
               <div class="border rounded p-3 h-100 d-flex flex-column gap-2">
                 {#if sign.gifUrl}
-                  <img
-                    src={sign.gifUrl}
-                    alt={sign.word}
-                    class="admin-gif-thumb rounded"
-                    loading="lazy"
-                  />
+                  <img src={sign.gifUrl} alt={sign.word} class="admin-gif-thumb rounded" loading="lazy" />
                 {:else}
-                  <div
-                    class="admin-gif-placeholder d-flex align-items-center justify-content-center text-muted rounded"
-                  >
+                  <div class="admin-gif-placeholder d-flex align-items-center justify-content-center text-muted rounded">
                     No GIF
                   </div>
                 {/if}
@@ -492,9 +458,7 @@
                 <div class="small text-muted">{sign.gloss}</div>
                 <div class="small text-muted">
                   {#each sign.books as b}
-                    <span class="badge bg-secondary me-1"
-                      >{b.book} → {b.unit}</span
-                    >
+                    <span class="badge bg-secondary me-1">{b.book} → {b.unit}</span>
                   {/each}
                 </div>
                 <div class="mt-auto">
@@ -505,11 +469,7 @@
                       type="submit"
                       class="btn btn-sm btn-outline-danger w-100"
                       onclick={(e) => {
-                        if (
-                          !confirm(
-                            `Delete ${sign.word}? This cannot be undone.`,
-                          )
-                        )
+                        if (!confirm(`Delete ${sign.word}? This cannot be undone.`))
                           e.preventDefault();
                       }}
                     >

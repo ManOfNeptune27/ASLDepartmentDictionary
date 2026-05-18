@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
-import { uploadGif, deleteGif } from '$lib/r2';
+import { deleteGif } from '$lib/r2';
 import { isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
@@ -102,8 +102,10 @@ export const actions: Actions = {
     const movement = toText(formData.get('movement'));
     const palmOrientation = toText(formData.get('palmOrientation'));
     const nonManualSignals = toText(formData.get('nonManualSignals'));
-    const gifEntry = formData.get('gif');
-    let gifFile: File | null = null;
+
+    // Now accepts URL and size instead of file
+    const gifUrl = toText(formData.get('gifUrl'));
+    const gifSize = Number(formData.get('gifSize') ?? 0);
 
     const errors: Record<string, string> = {};
 
@@ -124,6 +126,37 @@ export const actions: Actions = {
     if (!movement) errors.movement = 'Movement is required.';
     if (!palmOrientation) errors.palmOrientation = 'Palm orientation is required.';
     if (!nonManualSignals) errors.nonManualSignals = 'Non-manual signals are required.';
+    if (!gifUrl) errors.gif = 'GIF upload failed or was not provided.';
+
+    if (Object.keys(errors).length > 0) {
+      return fail(400, {
+        success: false,
+        errors,
+        values: {
+          word, gloss, books, bookUnitPairs: rawPairs,
+          handshape, location, movement, palmOrientation,
+          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
+        }
+      });
+    }
+
+    await initDb();
+
+    const STORAGE_LIMIT_BYTES = 9.8 * 1024 * 1024 * 1024;
+    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
+    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
+
+    if (totalSize + gifSize > STORAGE_LIMIT_BYTES) {
+      return fail(400, {
+        success: false,
+        errors: { gif: 'Storage limit reached (9.8GB). Please contact the administrator to remove old GIFs before uploading new ones.' } as Record<string, string>,
+        values: {
+          word, gloss, books, bookUnitPairs: rawPairs,
+          handshape, location, movement, palmOrientation,
+          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
+        }
+      });
+    }
 
     const submittedWord = normalizeWord(word);
     let duplicateNotice = '';
@@ -146,62 +179,10 @@ export const actions: Actions = {
       }
     }
 
-    if (!(gifEntry instanceof File) || gifEntry.size === 0) {
-      errors.gif = 'A GIF file is required.';
-    } else if (!allowedGifMimeTypes.includes(gifEntry.type)) {
-      errors.gif = 'Only .gif uploads are allowed.';
-    } else {
-      gifFile = gifEntry;
-    }
-
-    if (Object.keys(errors).length > 0) {
-      return fail(400, {
-        success: false,
-        errors,
-        values: {
-          word, gloss, books, bookUnitPairs: rawPairs,
-          handshape, location, movement, palmOrientation,
-          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
-        }
-      });
-    }
-
-    if (!gifFile) {
-      return fail(400, {
-        success: false,
-        errors: { gif: 'A GIF file is required.' } as Record<string, string>,
-        values: {
-          word, gloss, books, bookUnitPairs: rawPairs,
-          handshape, location, movement, palmOrientation,
-          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
-        }
-      });
-    }
-
-    await initDb();
-
-    const STORAGE_LIMIT_BYTES = 9.8 * 1024 * 1024 * 1024;
-    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
-    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
-
-    if (totalSize + gifFile.size > STORAGE_LIMIT_BYTES) {
-      return fail(400, {
-        success: false,
-        errors: { gif: 'Storage limit reached (9.8GB). Please contact the administrator to remove old GIFs before uploading new ones.' } as Record<string, string>,
-        values: {
-          word, gloss, books, bookUnitPairs: rawPairs,
-          handshape, location, movement, palmOrientation,
-          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
-        }
-      });
-    }
-
-    const gifUrl = await uploadGif(gifFile);
-
     const result = await db.execute({
       sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, gif_size, submitted_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, gifFile.size, new Date().toISOString()]
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, gifSize, new Date().toISOString()]
     });
 
     const signId = result.lastInsertRowid;
@@ -226,7 +207,7 @@ export const actions: Actions = {
       submission: {
         word,
         gloss,
-        gifFileName: gifFile.name,
+        gifFileName: gifUrl.split('/').pop() ?? '',
         bookUnitPairs: bookUnitPairs.map((pair) => ({ book: pair.book, unit: pair.unit }))
       }
     };
