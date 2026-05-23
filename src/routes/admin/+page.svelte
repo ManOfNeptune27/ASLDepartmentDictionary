@@ -18,6 +18,42 @@
   let uploadError = $state("");
   let editingSignId = $state<number | null>(null);
 
+  // Edit form state
+  let editSelectedBooks = $state<string[]>([]);
+  let editUnitSelectionByBook = $state<Record<string, string>>({});
+  let editNewUnitByBook = $state<Record<string, string>>({});
+
+  const editBookUnitPairs = $derived(
+    editSelectedBooks.map((book) => {
+      const sel = editUnitSelectionByBook[book] ?? "";
+      if (sel === ADD_NEW_UNIT_VALUE) {
+        return `${book}${PAIR_SEP}${ADD_NEW_UNIT_VALUE}${PAIR_SEP}${editNewUnitByBook[book] ?? ""}`;
+      }
+      return `${book}${PAIR_SEP}${sel}`;
+    }),
+  );
+
+  $effect(() => {
+    const booksSet = new Set(editSelectedBooks);
+    const stale = Object.keys(editUnitSelectionByBook).filter(
+      (b) => !booksSet.has(b),
+    );
+    if (stale.length > 0) {
+      const next = { ...editUnitSelectionByBook };
+      for (const b of stale) delete next[b];
+      editUnitSelectionByBook = next;
+    }
+  });
+
+  function startEditing(sign: any) {
+    editingSignId = sign.id;
+    editSelectedBooks = sign.books.map((b: any) => b.book);
+    editUnitSelectionByBook = Object.fromEntries(
+      sign.books.map((b: any) => [b.book, b.unit])
+    );
+    editNewUnitByBook = {};
+  }
+
   const filteredSigns = $derived(
     (data?.signs ?? []).filter((sign: any) =>
       sign.word.toLowerCase().includes(deleteSearch.toLowerCase()),
@@ -85,7 +121,6 @@
     uploading = true;
 
     try {
-      // Upload GIF via server proxy
       const uploadFormData = new FormData();
       uploadFormData.set("file", gifFile);
 
@@ -192,7 +227,6 @@
             <div class="alert alert-danger" role="alert">{form.errors.teacher}</div>
           {/if}
 
-          <!-- Add Teacher Form -->
           <form method="POST" action="?/addTeacher" class="mb-4 d-flex flex-column gap-3">
             <h4 class="h6 m-0">Add New Teacher</h4>
             <div class="row g-3">
@@ -208,7 +242,6 @@
             <button type="submit" class="btn btn-success align-self-start">Add Teacher</button>
           </form>
 
-          <!-- Teacher List -->
           {#if data?.teachers?.length === 0}
             <p class="text-muted">No teacher accounts yet.</p>
           {:else}
@@ -249,25 +282,13 @@
       >
         <div>
           <label class="form-label" for="word">Word</label>
-          <input
-            id="word"
-            name="word"
-            class="form-control {form?.errors?.word ? 'is-invalid' : ''}"
-            value={form?.values?.word ?? ""}
-            required
-          />
+          <input id="word" name="word" class="form-control {form?.errors?.word ? 'is-invalid' : ''}" value={form?.values?.word ?? ""} required />
           {#if form?.errors?.word}<div class="invalid-feedback d-block">{form.errors.word}</div>{/if}
         </div>
 
         <div>
           <label class="form-label" for="gloss">Gloss</label>
-          <input
-            id="gloss"
-            name="gloss"
-            class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}"
-            value={form?.values?.gloss ?? "N/A"}
-            required
-          />
+          <input id="gloss" name="gloss" class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}" value={form?.values?.gloss ?? "N/A"} required />
           {#if form?.errors?.gloss}<div class="invalid-feedback d-block">{form.errors.gloss}</div>{/if}
         </div>
 
@@ -277,20 +298,13 @@
             <div class="border rounded p-2 {form?.errors?.books ? 'border-danger' : ''}">
               {#each bookOptions as option}
                 <div class="form-check">
-                  <input
-                    id={`book-${option.value}`}
-                    name="books"
-                    type="checkbox"
-                    class="form-check-input"
-                    value={option.value}
-                    bind:group={selectedBooks}
-                  />
+                  <input id={`book-${option.value}`} name="books" type="checkbox" class="form-check-input" value={option.value} bind:group={selectedBooks} />
                   <label class="form-check-label" for={`book-${option.value}`}>{option.label}</label>
                 </div>
               {/each}
             </div>
             {#if form?.errors?.books}<div class="invalid-feedback d-block">{form.errors.books}</div>{/if}
-            <div class="form-text">Select all books where this sign appears.</div>
+            <div class="form-text">Select all books where this sign appears. Leave blank for MISCELLANEOUS.</div>
           </fieldset>
         </div>
 
@@ -312,12 +326,7 @@
                     <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
                   </select>
                   {#if isAddingNew}
-                    <input
-                      class="form-control form-control-sm mt-2"
-                      bind:value={newUnitByBook[book]}
-                      placeholder="Example: Unit 4: Community"
-                      required
-                    />
+                    <input class="form-control form-control-sm mt-2" bind:value={newUnitByBook[book]} placeholder="Example: Unit 4: Community" required />
                     <div class="form-text">Enter the new unit name for {book}.</div>
                   {/if}
                 </div>
@@ -334,24 +343,12 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="handshape">Handshape</label>
-            <input
-              id="handshape"
-              name="handshape"
-              class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}"
-              value={form?.values?.handshape ?? "N/A"}
-              required
-            />
+            <input id="handshape" name="handshape" class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}" value={form?.values?.handshape ?? "N/A"} required />
             {#if form?.errors?.handshape}<div class="invalid-feedback d-block">{form.errors.handshape}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="location">Location</label>
-            <input
-              id="location"
-              name="location"
-              class="form-control {form?.errors?.location ? 'is-invalid' : ''}"
-              value={form?.values?.location ?? "N/A"}
-              required
-            />
+            <input id="location" name="location" class="form-control {form?.errors?.location ? 'is-invalid' : ''}" value={form?.values?.location ?? "N/A"} required />
             {#if form?.errors?.location}<div class="invalid-feedback d-block">{form.errors.location}</div>{/if}
           </div>
         </div>
@@ -359,64 +356,32 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="movement">Movement</label>
-            <input
-              id="movement"
-              name="movement"
-              class="form-control {form?.errors?.movement ? 'is-invalid' : ''}"
-              value={form?.values?.movement ?? "N/A"}
-              required
-            />
+            <input id="movement" name="movement" class="form-control {form?.errors?.movement ? 'is-invalid' : ''}" value={form?.values?.movement ?? "N/A"} required />
             {#if form?.errors?.movement}<div class="invalid-feedback d-block">{form.errors.movement}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="palmOrientation">Palm Orientation</label>
-            <input
-              id="palmOrientation"
-              name="palmOrientation"
-              class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}"
-              value={form?.values?.palmOrientation ?? "N/A"}
-              required
-            />
+            <input id="palmOrientation" name="palmOrientation" class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}" value={form?.values?.palmOrientation ?? "N/A"} required />
             {#if form?.errors?.palmOrientation}<div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>{/if}
           </div>
         </div>
 
         <div>
           <label class="form-label" for="nonManualSignals">Non-Manual Signals</label>
-          <input
-            id="nonManualSignals"
-            name="nonManualSignals"
-            class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}"
-            value={form?.values?.nonManualSignals ?? "N/A"}
-            required
-          />
+          <input id="nonManualSignals" name="nonManualSignals" class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}" value={form?.values?.nonManualSignals ?? "N/A"} required />
           {#if form?.errors?.nonManualSignals}<div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>{/if}
         </div>
 
         <div>
           <label class="form-label" for="gif">GIF Upload</label>
-          <input
-            id="gif"
-            name="gif"
-            type="file"
-            accept="image/gif"
-            class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}"
-            required
-          />
+          <input id="gif" name="gif" type="file" accept="image/gif" class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}" required />
           <div class="form-text">Only .gif files are accepted.</div>
           {#if form?.errors?.gif}<div class="invalid-feedback d-block">{form.errors.gif}</div>{/if}
           {#if uploadError}<div class="invalid-feedback d-block">{uploadError}</div>{/if}
         </div>
 
         <div class="form-check">
-          <input
-            id="allowDuplicate"
-            name="allowDuplicate"
-            type="checkbox"
-            class="form-check-input"
-            value="true"
-            checked={form?.values?.allowDuplicate === "true"}
-          />
+          <input id="allowDuplicate" name="allowDuplicate" type="checkbox" class="form-check-input" value="true" checked={form?.values?.allowDuplicate === "true"} />
           <label class="form-check-label" for="allowDuplicate">Allow duplicate / alternate version of this sign</label>
           <div class="form-text">Use this only when the same word has a valid second version.</div>
         </div>
@@ -429,13 +394,7 @@
       <!-- Existing Signs -->
       <h3 class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
 
-      <input
-        type="search"
-        class="form-control mb-3"
-        placeholder="Search signs to delete..."
-        bind:value={deleteSearch}
-        aria-label="Search signs"
-      />
+      <input type="search" class="form-control mb-3" placeholder="Search signs to delete..." bind:value={deleteSearch} aria-label="Search signs" />
 
       {#if filteredSigns.length === 0}
         <p class="text-muted">No signs match your search.</p>
@@ -462,7 +421,13 @@
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-primary w-100"
-                    onclick={() => (editingSignId = editingSignId === sign.id ? null : sign.id)}
+                    onclick={() => {
+                      if (editingSignId === sign.id) {
+                        editingSignId = null;
+                      } else {
+                        startEditing(sign);
+                      }
+                    }}
                   >
                     {editingSignId === sign.id ? 'Cancel' : 'Edit'}
                   </button>
@@ -477,6 +442,51 @@
                       <input name="movement" class="form-control form-control-sm" value={sign.movement} placeholder="Movement" required />
                       <input name="palmOrientation" class="form-control form-control-sm" value={sign.palmOrientation} placeholder="Palm Orientation" required />
                       <input name="nonManualSignals" class="form-control form-control-sm" value={sign.nonManualSignals} placeholder="Non-Manual Signals" required />
+
+                      <!-- Book/Unit editing -->
+                      <fieldset class="border rounded p-2">
+                        <legend class="form-label d-block small fw-semibold">Books</legend>
+                        {#each bookOptions as option}
+                          <div class="form-check">
+                            <input
+                              id={`edit-book-${sign.id}-${option.value}`}
+                              type="checkbox"
+                              class="form-check-input"
+                              value={option.value}
+                              bind:group={editSelectedBooks}
+                            />
+                            <label class="form-check-label small" for={`edit-book-${sign.id}-${option.value}`}>{option.label}</label>
+                          </div>
+                        {/each}
+                      </fieldset>
+
+                      {#if editSelectedBooks.length > 0}
+                        <div class="d-flex flex-column gap-2">
+                          {#each editSelectedBooks as book}
+                            {@const bookId = `edit-${sign.id}-${book.replace(/\s+/g, "-").toLowerCase()}`}
+                            {@const isAddingNew = (editUnitSelectionByBook[book] ?? "") === ADD_NEW_UNIT_VALUE}
+                            {@const existingUnits = data?.unitsByBook?.[book] ?? []}
+                            <div class="border rounded p-2">
+                              <label class="form-label mb-1 fw-semibold small" for={bookId}>{book}</label>
+                              <select id={bookId} class="form-select form-select-sm" bind:value={editUnitSelectionByBook[book]}>
+                                <option value="">Select unit</option>
+                                {#each existingUnits as unitOption}
+                                  <option value={unitOption}>{unitOption}</option>
+                                {/each}
+                                <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
+                              </select>
+                              {#if isAddingNew}
+                                <input class="form-control form-control-sm mt-2" bind:value={editNewUnitByBook[book]} placeholder="New unit name" />
+                              {/if}
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+
+                      {#each editBookUnitPairs as pair}
+                        <input type="hidden" name="bookUnitPair" value={pair} />
+                      {/each}
+
                       <button type="submit" class="btn btn-sm btn-primary w-100">Save</button>
                     </form>
                   {/if}
