@@ -117,7 +117,10 @@ export const actions: Actions = {
 
     if (!word) errors.word = 'Word is required.';
     if (!gloss) errors.gloss = 'Gloss is required.';
-    if (books.length === 0) errors.books = 'Select at least one book.';
+    if (books.length === 0) {
+      books.push('MISCELLANEOUS');
+      bookUnitPairs.push({ book: 'MISCELLANEOUS', unit: 'Uncategorized' });
+    }
 
     const missingUnits = books.filter((book) => {
       const pair = bookUnitPairs.find((p) => p.book === book);
@@ -296,12 +299,40 @@ export const actions: Actions = {
     const palmOrientation = toText(formData.get('palmOrientation'));
     const nonManualSignals = toText(formData.get('nonManualSignals'));
 
+    const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
+    const PAIR_SEP = '|||';
+    const bookUnitPairs: { book: string; unit: string }[] = rawPairs.map((raw) => {
+      const parts = raw.split(PAIR_SEP);
+      const book = parts[0] ?? '';
+      const unitVal = parts[1] ?? '';
+      const customUnit = parts[2] ?? '';
+      const unit = unitVal === '__add_new_unit__' ? customUnit : unitVal;
+      return { book, unit };
+    });
+
     if (!id) return fail(400, { success: false, errors: { general: 'Missing sign ID.' } } as any);
 
     await db.execute({
       sql: `UPDATE signs SET word = ?, gloss = ?, handshape = ?, location = ?, movement = ?, palm_orientation = ?, non_manual_signals = ? WHERE id = ?`,
       args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, Number(id)]
     });
+
+    // Update book/unit pairs
+    await db.execute({ sql: `DELETE FROM sign_books WHERE sign_id = ?`, args: [Number(id)] });
+
+    if (bookUnitPairs.length === 0) {
+      await db.execute({
+        sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
+        args: [Number(id), 'MISCELLANEOUS', 'Uncategorized']
+      });
+    } else {
+      for (const pair of bookUnitPairs) {
+        await db.execute({
+          sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
+          args: [Number(id), pair.book, pair.unit]
+        });
+      }
+    }
 
     return { success: true, message: `${word} updated successfully!` };
   }
