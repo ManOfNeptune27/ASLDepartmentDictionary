@@ -16,6 +16,7 @@
   let deleteSearch = $state("");
   let uploading = $state(false);
   let uploadError = $state("");
+  let editingSignId = $state<number | null>(null);
 
   const filteredSigns = $derived(
     (data?.signs ?? []).filter((sign: any) =>
@@ -84,30 +85,26 @@
     uploading = true;
 
     try {
-      const presignRes = await fetch(`/api/presign?filename=${encodeURIComponent(gifFile.name)}`);
-      const { uploadUrl, publicUrl, error } = await presignRes.json();
+      // Upload GIF via server proxy
+      const uploadFormData = new FormData();
+      uploadFormData.set("file", gifFile);
 
-      if (error) {
-        uploadError = error;
-        uploading = false;
-        return;
-      }
-
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "image/gif" },
-        body: gifFile,
+      const uploadRes = await fetch("/api/presign", {
+        method: "POST",
+        body: uploadFormData,
       });
 
-      if (!uploadRes.ok) {
-        uploadError = "Failed to upload GIF. Please try again.";
+      const { publicUrl, size, error } = await uploadRes.json();
+
+      if (error || !publicUrl) {
+        uploadError = error ?? "Failed to upload GIF. Please try again.";
         uploading = false;
         return;
       }
 
       formData.delete("gif");
       formData.set("gifUrl", publicUrl);
-      formData.set("gifSize", String(gifFile.size));
+      formData.set("gifSize", String(size));
 
       const submitRes = await fetch("?/upload", {
         method: "POST",
@@ -268,7 +265,7 @@
             id="gloss"
             name="gloss"
             class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}"
-            value={form?.values?.gloss ?? ""}
+            value={form?.values?.gloss ?? "N/A"}
             required
           />
           {#if form?.errors?.gloss}<div class="invalid-feedback d-block">{form.errors.gloss}</div>{/if}
@@ -341,7 +338,7 @@
               id="handshape"
               name="handshape"
               class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}"
-              value={form?.values?.handshape ?? ""}
+              value={form?.values?.handshape ?? "N/A"}
               required
             />
             {#if form?.errors?.handshape}<div class="invalid-feedback d-block">{form.errors.handshape}</div>{/if}
@@ -352,7 +349,7 @@
               id="location"
               name="location"
               class="form-control {form?.errors?.location ? 'is-invalid' : ''}"
-              value={form?.values?.location ?? ""}
+              value={form?.values?.location ?? "N/A"}
               required
             />
             {#if form?.errors?.location}<div class="invalid-feedback d-block">{form.errors.location}</div>{/if}
@@ -366,7 +363,7 @@
               id="movement"
               name="movement"
               class="form-control {form?.errors?.movement ? 'is-invalid' : ''}"
-              value={form?.values?.movement ?? ""}
+              value={form?.values?.movement ?? "N/A"}
               required
             />
             {#if form?.errors?.movement}<div class="invalid-feedback d-block">{form.errors.movement}</div>{/if}
@@ -377,7 +374,7 @@
               id="palmOrientation"
               name="palmOrientation"
               class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}"
-              value={form?.values?.palmOrientation ?? ""}
+              value={form?.values?.palmOrientation ?? "N/A"}
               required
             />
             {#if form?.errors?.palmOrientation}<div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>{/if}
@@ -390,7 +387,7 @@
             id="nonManualSignals"
             name="nonManualSignals"
             class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}"
-            value={form?.values?.nonManualSignals ?? ""}
+            value={form?.values?.nonManualSignals ?? "N/A"}
             required
           />
           {#if form?.errors?.nonManualSignals}<div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>{/if}
@@ -461,7 +458,29 @@
                     <span class="badge bg-secondary me-1">{b.book} → {b.unit}</span>
                   {/each}
                 </div>
-                <div class="mt-auto">
+                <div class="mt-auto d-flex flex-column gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary w-100"
+                    onclick={() => (editingSignId = editingSignId === sign.id ? null : sign.id)}
+                  >
+                    {editingSignId === sign.id ? 'Cancel' : 'Edit'}
+                  </button>
+
+                  {#if editingSignId === sign.id}
+                    <form method="POST" action="?/editSign" class="d-flex flex-column gap-2 mt-1">
+                      <input type="hidden" name="id" value={sign.id} />
+                      <input name="word" class="form-control form-control-sm" value={sign.word} placeholder="Word" required />
+                      <input name="gloss" class="form-control form-control-sm" value={sign.gloss} placeholder="Gloss" required />
+                      <input name="handshape" class="form-control form-control-sm" value={sign.handshape} placeholder="Handshape" required />
+                      <input name="location" class="form-control form-control-sm" value={sign.location} placeholder="Location" required />
+                      <input name="movement" class="form-control form-control-sm" value={sign.movement} placeholder="Movement" required />
+                      <input name="palmOrientation" class="form-control form-control-sm" value={sign.palmOrientation} placeholder="Palm Orientation" required />
+                      <input name="nonManualSignals" class="form-control form-control-sm" value={sign.nonManualSignals} placeholder="Non-Manual Signals" required />
+                      <button type="submit" class="btn btn-sm btn-primary w-100">Save</button>
+                    </form>
+                  {/if}
+
                   <form method="POST" action="?/delete">
                     <input type="hidden" name="id" value={sign.id} />
                     <input type="hidden" name="gifUrl" value={sign.gifUrl} />

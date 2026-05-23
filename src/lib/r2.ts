@@ -37,3 +37,16 @@ export async function deleteGif(gifUrl: string): Promise<void> {
 
   await r2.fetch(url, { method: 'DELETE' });
 }
+
+export async function uploadGifBuffer(buffer: ArrayBuffer, filename: string): Promise<string> {
+  const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
+  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${key}`;
+
+  await r2.fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/gif' },
+    body: buffer,
+  });
+
+  return `${R2_PUBLIC_URL}/${key}`;
+}
