@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
   await initDb();
 
   const signsResult = await db.execute(`
-    SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at
+    SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at,
+           s.handshape, s.location, s.movement, s.palm_orientation, s.non_manual_signals
     FROM signs s
     ORDER BY s.word ASC
   `);
@@ -51,6 +52,11 @@ export const load: PageServerLoad = async ({ cookies }) => {
       gloss: String(row.gloss),
       gifUrl: String(row.gif_url),
       submittedAt: String(row.submitted_at),
+      handshape: String(row.handshape),
+      location: String(row.location),
+      movement: String(row.movement),
+      palmOrientation: String(row.palm_orientation),
+      nonManualSignals: String(row.non_manual_signals),
       books
     };
   });
@@ -273,5 +279,30 @@ export const actions: Actions = {
     });
 
     return { success: true, message: 'Teacher account removed.' };
+  },
+
+  editSign: async ({ request, cookies }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
+
+    const formData = await request.formData();
+    const id = toText(formData.get('id'));
+    const word = toText(formData.get('word'));
+    const gloss = toText(formData.get('gloss'));
+    const handshape = toText(formData.get('handshape'));
+    const location = toText(formData.get('location'));
+    const movement = toText(formData.get('movement'));
+    const palmOrientation = toText(formData.get('palmOrientation'));
+    const nonManualSignals = toText(formData.get('nonManualSignals'));
+
+    if (!id) return fail(400, { success: false, errors: { general: 'Missing sign ID.' } } as any);
+
+    await db.execute({
+      sql: `UPDATE signs SET word = ?, gloss = ?, handshape = ?, location = ?, movement = ?, palm_orientation = ?, non_manual_signals = ? WHERE id = ?`,
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, Number(id)]
+    });
+
+    return { success: true, message: `${word} updated successfully!` };
   }
 };
