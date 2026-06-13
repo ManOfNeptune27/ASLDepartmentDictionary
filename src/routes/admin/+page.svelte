@@ -17,6 +17,7 @@
   let uploading = $state(false);
   let uploadError = $state("");
   let editingSignId = $state<number | null>(null);
+  let showTeacherPassword = $state(false);
 
   // Edit form state
   let editSelectedBooks = $state<string[]>([]);
@@ -236,7 +237,17 @@
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label" for="teacherPassword">Password</label>
-                <input id="teacherPassword" name="teacherPassword" type="password" class="form-control" required />
+                <div class="input-group">
+                  <input id="teacherPassword" name="teacherPassword" type={showTeacherPassword ? 'text' : 'password'} class="form-control" required />
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    onclick={() => (showTeacherPassword = !showTeacherPassword)}
+                    title={showTeacherPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showTeacherPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
             </div>
             <button type="submit" class="btn btn-success align-self-start">Add Teacher</button>

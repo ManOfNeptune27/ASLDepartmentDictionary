@@ -1,5 +1,6 @@
 <script lang="ts">
   let { data, form } = $props();
+  let showPassword = $state(false);
 </script>
 
 <main class="container py-4">
@@ -29,14 +30,24 @@
 
         <div>
           <label class="form-label" for="password">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            class="form-control"
-            autocomplete="current-password"
-            required
-          />
+          <div class="input-group">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              class="form-control"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              onclick={() => (showPassword = !showPassword)}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </div>
 
         <button type="submit" class="btn btn-primary align-self-start">Log In</button>
