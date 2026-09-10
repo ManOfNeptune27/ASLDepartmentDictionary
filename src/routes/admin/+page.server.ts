@@ -115,7 +115,7 @@ export const actions: Actions = {
 
     const errors: Record<string, string> = {};
 
-    if (!word) errors.word = 'Word is required.';
+    if (!word) errors.word = 'Name of Sign is required.';
     if (!gloss) errors.gloss = 'Gloss is required.';
     if (books.length === 0) {
       books.push('MISCELLANEOUS');
@@ -181,7 +181,7 @@ export const actions: Actions = {
       );
 
       if (locations.length > 0) {
-        duplicateNotice = `This word is already present in ${locations.join('; ')}.`;
+        duplicateNotice = `This name of sign is already present in ${locations.join('; ')}.`;
         if (!allowDuplicate) {
           errors.word = `${duplicateNotice} Check "Allow duplicate / alternate version" to continue.`;
         }
