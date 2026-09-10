@@ -50,3 +50,15 @@ export async function uploadGifBuffer(buffer: ArrayBuffer, filename: string): Pr
 
   return `${R2_PUBLIC_URL}/${key}`;
 }
+
+export async function createGifUploadUrl(filename: string): Promise<{ uploadUrl: string; publicUrl: string }> {
+  const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
+  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${key}`;
+  const signedRequest = await r2.sign(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/gif' },
+    aws: { signQuery: true },
+  });
+
+  return { uploadUrl: signedRequest.url, publicUrl: `${R2_PUBLIC_URL}/${key}` };
+}

@@ -132,18 +132,28 @@
     uploading = true;
 
     try {
-      const uploadFormData = new FormData();
-      uploadFormData.set("file", gifFile);
-
       const uploadRes = await fetch("/api/presign", {
         method: "POST",
-        body: uploadFormData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: gifFile.name, size: gifFile.size }),
       });
 
-      const { publicUrl, size, error } = await uploadRes.json();
+      const { uploadUrl, publicUrl, size, error } = await uploadRes.json();
 
-      if (error || !publicUrl) {
+      if (error || !uploadUrl || !publicUrl) {
         uploadError = error ?? "Failed to upload GIF. Please try again.";
+        uploading = false;
+        return;
+      }
+
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "image/gif" },
+        body: gifFile,
+      });
+
+      if (!putRes.ok) {
+        uploadError = "Failed to upload GIF. Please try again.";
         uploading = false;
         return;
       }
