@@ -16,6 +16,7 @@
   let deleteSearch = $state("");
   let uploading = $state(false);
   let uploadError = $state("");
+  let signName = $state("");
   let editingSignId = $state<number | null>(null);
   let showTeacherPassword = $state(false);
 
@@ -63,6 +64,7 @@
 
   $effect(() => {
     if (form?.values) {
+      if (form.values.word !== undefined) signName = form.values.word;
       selectedBooks = Array.isArray(form.values.books) ? form.values.books : [];
       const pairs: string[] = Array.isArray(form.values.bookUnitPairs)
         ? form.values.bookUnitPairs
@@ -83,6 +85,14 @@
       newUnitByBook = newMap;
     }
   });
+
+  function handleGifChange(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const gifFile = input.files?.[0];
+    if (!gifFile || signName.trim()) return;
+
+    signName = gifFile.name.replace(/\.gif$/i, "");
+  }
 
   $effect(() => {
     const booksSet = new Set(selectedBooks);
@@ -292,8 +302,8 @@
         class="border rounded p-3 p-md-4 d-flex flex-column gap-3 mb-5"
       >
         <div>
-          <label class="form-label" for="word">Word</label>
-          <input id="word" name="word" class="form-control {form?.errors?.word ? 'is-invalid' : ''}" value={form?.values?.word ?? ""} required />
+          <label class="form-label" for="word">Name of Sign</label>
+          <input id="word" name="word" class="form-control {form?.errors?.word ? 'is-invalid' : ''}" bind:value={signName} required />
           {#if form?.errors?.word}<div class="invalid-feedback d-block">{form.errors.word}</div>{/if}
         </div>
 
@@ -385,7 +395,7 @@
 
         <div>
           <label class="form-label" for="gif">GIF Upload</label>
-          <input id="gif" name="gif" type="file" accept="image/gif" class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}" required />
+          <input id="gif" name="gif" type="file" accept="image/gif" onchange={handleGifChange} class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}" required />
           <div class="form-text">Only .gif files are accepted.</div>
           {#if form?.errors?.gif}<div class="invalid-feedback d-block">{form.errors.gif}</div>{/if}
           {#if uploadError}<div class="invalid-feedback d-block">{uploadError}</div>{/if}
@@ -394,7 +404,7 @@
         <div class="form-check">
           <input id="allowDuplicate" name="allowDuplicate" type="checkbox" class="form-check-input" value="true" checked={form?.values?.allowDuplicate === "true"} />
           <label class="form-check-label" for="allowDuplicate">Allow duplicate / alternate version of this sign</label>
-          <div class="form-text">Use this only when the same word has a valid second version.</div>
+          <div class="form-text">Use this only when the same sign name has a valid second version.</div>
         </div>
 
         <button type="submit" class="btn btn-primary align-self-start" disabled={uploading}>
@@ -446,7 +456,7 @@
                   {#if editingSignId === sign.id}
                     <form method="POST" action="?/editSign" class="d-flex flex-column gap-2 mt-1">
                       <input type="hidden" name="id" value={sign.id} />
-                      <input name="word" class="form-control form-control-sm" value={sign.word} placeholder="Word" required />
+                      <input name="word" class="form-control form-control-sm" value={sign.word} placeholder="Name of Sign" required />
                       <input name="gloss" class="form-control form-control-sm" value={sign.gloss} placeholder="Gloss" required />
                       <input name="handshape" class="form-control form-control-sm" value={sign.handshape} placeholder="Handshape" required />
                       <input name="location" class="form-control form-control-sm" value={sign.location} placeholder="Location" required />
