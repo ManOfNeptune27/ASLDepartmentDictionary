@@ -228,15 +228,41 @@
           throw new Error("Only valid GIF files are accepted.");
         }
 
-        uploadStage = "uploading and saving";
-        const uploadData = new FormData();
-        uploadData.set("gif", file);
-        const uploadRes = await fetch("/api/batch-upload", {
+        uploadStage = "preparing upload";
+        const presignRes = await fetch("/api/presign", {
           method: "POST",
-          body: uploadData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename, size: file.size }),
         });
-        const uploadResult = await readJsonResponse(uploadRes) as { error?: string };
-        if (!uploadRes.ok) throw new Error(uploadResult.error ?? "Could not upload the GIF.");
+        const presignResult = await readJsonResponse(presignRes) as {
+          uploadUrl?: string;
+          publicUrl?: string;
+          error?: string;
+        };
+        if (!presignRes.ok || !presignResult.uploadUrl || !presignResult.publicUrl) {
+          throw new Error(presignResult.error ?? "Could not prepare the GIF upload.");
+        }
+
+        uploadStage = "uploading";
+        const putRes = await fetch(presignResult.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "image/gif" },
+          body: file,
+        });
+        if (!putRes.ok) throw new Error("Could not upload the GIF to storage.");
+
+        uploadStage = "saving";
+        const recordRes = await fetch("/api/batch-record", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename,
+            gifUrl: presignResult.publicUrl,
+            gifSize: file.size,
+          }),
+        });
+        const recordResult = await readJsonResponse(recordRes) as { error?: string };
+        if (!recordRes.ok) throw new Error(recordResult.error ?? "Could not save the GIF.");
 
         batchResults = [...batchResults, { filename, success: true }];
       } catch (error) {
