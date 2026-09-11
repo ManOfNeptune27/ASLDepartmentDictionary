@@ -98,6 +98,16 @@
     signName = gifFile.name.replace(/\.gif$/i, "");
   }
 
+  async function readJsonResponse(response: Response) {
+    const body = await response.text();
+    try {
+      return JSON.parse(body) as Record<string, unknown>;
+    } catch {
+      const destination = response.redirected ? ` to ${response.url}` : "";
+      throw new Error(`The server returned an unexpected response${destination}.`);
+    }
+  }
+
   $effect(() => {
     const booksSet = new Set(selectedBooks);
     const stale = Object.keys(unitSelectionByBook).filter(
@@ -142,7 +152,12 @@
         body: JSON.stringify({ filename: gifFile.name, size: gifFile.size }),
       });
 
-      const { uploadUrl, publicUrl, size, error } = await uploadRes.json();
+      const { uploadUrl, publicUrl, size, error } = await readJsonResponse(uploadRes) as {
+        uploadUrl?: string;
+        publicUrl?: string;
+        size?: number;
+        error?: string;
+      };
 
       if (error || !uploadUrl || !publicUrl) {
         uploadError = error ?? "Failed to upload GIF. Please try again.";
@@ -220,7 +235,7 @@
           method: "POST",
           body: uploadData,
         });
-        const uploadResult = await uploadRes.json();
+        const uploadResult = await readJsonResponse(uploadRes) as { error?: string };
         if (!uploadRes.ok) throw new Error(uploadResult.error ?? "Could not upload the GIF.");
 
         batchResults = [...batchResults, { filename, success: true }];

@@ -1,4 +1,5 @@
 import type { Cookies } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { db } from '$lib/db';
 import { env } from '$env/dynamic/private';
 
@@ -10,7 +11,7 @@ function authCookieOptions() {
     path: '/',
     httpOnly: true,
     sameSite: 'lax' as const,
-    secure: true,
+    secure: !dev,
     maxAge: 60 * 60 * 8
   };
 }
