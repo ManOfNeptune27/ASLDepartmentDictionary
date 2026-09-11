@@ -16,6 +16,10 @@
   let deleteSearch = $state("");
   let uploading = $state(false);
   let uploadError = $state("");
+  let batchUploading = $state(false);
+  let batchProgress = $state("");
+  let batchUploadError = $state("");
+  let batchResults = $state<{ filename: string; success: boolean; error?: string }[]>([]);
   let signName = $state("");
   let editingSignId = $state<number | null>(null);
   let showTeacherPassword = $state(false);
@@ -178,6 +182,60 @@
 
     uploading = false;
   }
+
+  async function handleBatchSubmit(e: SubmitEvent) {
+    e.preventDefault();
+    batchUploadError = "";
+    batchResults = [];
+
+    const formEl = e.target as HTMLFormElement;
+    const input = formEl.elements.namedItem("gifs") as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    if (files.length === 0) {
+      batchUploadError = "Please select at least one GIF file.";
+      return;
+    }
+
+    batchUploading = true;
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const filename = file.name.split(/[\\/]/).pop() ?? file.name;
+      const word = filename.replace(/\.gif$/i, "").trim();
+      batchProgress = `Uploading ${index + 1} of ${files.length}: ${filename}`;
+      let uploadStage = "validating";
+
+      try {
+        const signature = new TextDecoder().decode(
+          (await file.slice(0, 6).arrayBuffer()),
+        );
+        if (!/\.gif$/i.test(filename) || (file.type && file.type !== "image/gif") ||
+          (signature !== "GIF87a" && signature !== "GIF89a") || !word) {
+          throw new Error("Only valid GIF files are accepted.");
+        }
+
+        uploadStage = "uploading and saving";
+        const uploadData = new FormData();
+        uploadData.set("gif", file);
+        const uploadRes = await fetch("/api/batch-upload", {
+          method: "POST",
+          body: uploadData,
+        });
+        const uploadResult = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadResult.error ?? "Could not upload the GIF.");
+
+        batchResults = [...batchResults, { filename, success: true }];
+      } catch (error) {
+        batchResults = [...batchResults, {
+          filename,
+          success: false,
+          error: `${uploadStage}: ${error instanceof Error ? error.message : "Upload failed."}`,
+        }];
+      }
+    }
+
+    batchProgress = `Finished ${files.length} file${files.length === 1 ? "" : "s"}.`;
+    batchUploading = false;
+  }
 </script>
 
 <main class="container py-4">
@@ -304,6 +362,43 @@
           {/if}
         </div>
       {/if}
+
+      <!-- Batch Upload Form -->
+      <form
+        onsubmit={handleBatchSubmit}
+        enctype="multipart/form-data"
+        class="border rounded p-3 p-md-4 d-flex flex-column gap-3 mb-5"
+      >
+        <div>
+          <h3 class="h5 mb-1">Batch GIF Upload</h3>
+          <p class="text-muted mb-0">Select a folder or multiple files. Each filename becomes the sign name.</p>
+        </div>
+
+        <div>
+          <label class="form-label" for="batchGifs">GIF Files</label>
+          <input id="batchGifs" name="gifs" type="file" accept=".gif,image/gif" multiple webkitdirectory class="form-control" required />
+          <div class="form-text">Only valid GIF files are uploaded. Other file types are rejected.</div>
+          {#if form?.errors?.batch}<div class="invalid-feedback d-block">{form.errors.batch}</div>{/if}
+          {#if batchUploadError}<div class="invalid-feedback d-block">{batchUploadError}</div>{/if}
+        </div>
+
+        <button type="submit" class="btn btn-primary align-self-start" disabled={batchUploading}>
+          {batchUploading ? "Uploading..." : "Upload GIF Batch"}
+        </button>
+
+        {#if batchProgress || batchResults.length > 0}
+          <div class="border-top pt-3">
+            <div class="fw-semibold mb-2">{batchProgress}</div>
+            <div class="d-flex flex-column gap-1">
+              {#each batchResults as result}
+                <div class="small {result.success ? 'text-success' : 'text-danger'}">
+                  {result.success ? 'Uploaded' : 'Rejected'}: {result.filename}{result.error ? ` — ${result.error}` : ''}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </form>
 
       <!-- Upload Form -->
       <form
