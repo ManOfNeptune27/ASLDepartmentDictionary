@@ -602,13 +602,34 @@
                   {#if editingSignId === sign.id}
                     <form method="POST" action="?/editSign" class="d-flex flex-column gap-2 mt-1">
                       <input type="hidden" name="id" value={sign.id} />
-                      <input name="word" class="form-control form-control-sm" value={sign.word} placeholder="Name of Sign" required />
-                      <input name="gloss" class="form-control form-control-sm" value={sign.gloss} placeholder="Gloss" required />
-                      <input name="handshape" class="form-control form-control-sm" value={sign.handshape} placeholder="Handshape" required />
-                      <input name="location" class="form-control form-control-sm" value={sign.location} placeholder="Location" required />
-                      <input name="movement" class="form-control form-control-sm" value={sign.movement} placeholder="Movement" required />
-                      <input name="palmOrientation" class="form-control form-control-sm" value={sign.palmOrientation} placeholder="Palm Orientation" required />
-                      <input name="nonManualSignals" class="form-control form-control-sm" value={sign.nonManualSignals} placeholder="Non-Manual Signals" required />
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-word-${sign.id}`}>Name of Sign</label>
+                        <input id={`edit-word-${sign.id}`} name="word" class="form-control form-control-sm" value={sign.word} required />
+                      </div>
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-gloss-${sign.id}`}>Gloss</label>
+                        <input id={`edit-gloss-${sign.id}`} name="gloss" class="form-control form-control-sm" value={sign.gloss} required />
+                      </div>
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-handshape-${sign.id}`}>Handshape</label>
+                        <input id={`edit-handshape-${sign.id}`} name="handshape" class="form-control form-control-sm" value={sign.handshape} required />
+                      </div>
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-location-${sign.id}`}>Location</label>
+                        <input id={`edit-location-${sign.id}`} name="location" class="form-control form-control-sm" value={sign.location} required />
+                      </div>
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-movement-${sign.id}`}>Movement</label>
+                        <input id={`edit-movement-${sign.id}`} name="movement" class="form-control form-control-sm" value={sign.movement} required />
+                      </div>
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-palm-${sign.id}`}>Palm Orientation</label>
+                        <input id={`edit-palm-${sign.id}`} name="palmOrientation" class="form-control form-control-sm" value={sign.palmOrientation} required />
+                      </div>
+                      <div>
+                        <label class="form-label small mb-1" for={`edit-non-manual-${sign.id}`}>Non-Manual Signals</label>
+                        <input id={`edit-non-manual-${sign.id}`} name="nonManualSignals" class="form-control form-control-sm" value={sign.nonManualSignals} required />
+                      </div>
 
                       <!-- Book/Unit editing -->
                       <fieldset class="border rounded p-2">
