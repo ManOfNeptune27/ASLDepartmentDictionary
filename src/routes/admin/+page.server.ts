@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
-import { deleteGif } from '$lib/r2';
+import { deleteGif, uploadGifBuffer } from '$lib/r2';
 import { isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
@@ -18,6 +18,15 @@ function normalizeWord(value: string) {
 
 function toWordText(entry: WordEntry) {
   return typeof entry === 'string' ? entry : entry.word;
+}
+
+function isGifFile(file: File) {
+  return /\.gif$/i.test(file.name) && allowedGifMimeTypes.includes(file.type || 'image/gif');
+}
+
+function gifWordFromFilename(filename: string) {
+  const basename = filename.split(/[\\/]/).pop() ?? filename;
+  return basename.replace(/\.gif$/i, '').trim();
 }
 
 export const load: PageServerLoad = async ({ cookies }) => {
@@ -80,6 +89,85 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
+  batchUpload: async ({ request, cookies }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
+
+    const formData = await request.formData();
+    const files = formData.getAll('gifs').filter((value): value is File => value instanceof File);
+    const gloss = 'N/A';
+    const handshape = 'N/A';
+    const location = 'N/A';
+    const movement = 'N/A';
+    const palmOrientation = 'N/A';
+    const nonManualSignals = 'N/A';
+    const book = 'MISCELLANEOUS';
+    const unit = 'Uncategorized';
+
+    if (files.length === 0) {
+      return fail(400, { success: false, errors: { batch: 'Please select at least one GIF file.' } } as any);
+    }
+
+    await initDb();
+    const storageLimitBytes = 9.8 * 1024 * 1024 * 1024;
+    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
+    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
+    const batchSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize + batchSize > storageLimitBytes) {
+      return fail(400, { success: false, errors: { batch: 'This batch exceeds the 9.8GB storage limit.' } } as any);
+    }
+
+    const results: { filename: string; word: string; success: boolean; error?: string }[] = [];
+
+    for (const file of files) {
+      const word = gifWordFromFilename(file.name);
+      if (!isGifFile(file) || !word) {
+        results.push({ filename: file.name, word, success: false, error: 'Only GIF files are accepted.' });
+        continue;
+      }
+
+      const buffer = await file.arrayBuffer();
+      const signature = new TextDecoder().decode(buffer.slice(0, 6));
+      if (signature !== 'GIF87a' && signature !== 'GIF89a') {
+        results.push({ filename: file.name, word, success: false, error: 'The file is not a valid GIF.' });
+        continue;
+      }
+
+      let gifUrl = '';
+      try {
+        gifUrl = await uploadGifBuffer(buffer, file.name);
+        const result = await db.execute({
+          sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, gif_size, submitted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, gifUrl, file.size, new Date().toISOString()]
+        });
+
+        if (!result.lastInsertRowid) {
+          await deleteGif(gifUrl);
+          results.push({ filename: file.name, word, success: false, error: 'Failed to save the sign.' });
+          continue;
+        }
+
+        await db.execute({
+          sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
+          args: [Number(result.lastInsertRowid), book, unit]
+        });
+        results.push({ filename: file.name, word, success: true });
+      } catch {
+        if (gifUrl) await deleteGif(gifUrl).catch(() => undefined);
+        results.push({ filename: file.name, word, success: false, error: 'Upload or database save failed.' });
+      }
+    }
+
+    const uploaded = results.filter((result) => result.success).length;
+    return {
+      success: uploaded > 0,
+      message: `Batch complete: ${uploaded} of ${results.length} GIFs uploaded.`,
+      batchResults: results
+    };
+  },
+
   upload: async ({ request, cookies }) => {
     if (!isTeacherAuthenticated(cookies)) {
       return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
