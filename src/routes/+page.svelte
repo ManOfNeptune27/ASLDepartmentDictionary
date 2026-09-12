@@ -53,6 +53,8 @@
   let selectedUnitId = $state<string | null>(null);
   let searchQuery = $state("");
   let selectedCardId = $state<string | null>(null);
+  let currentPage = $state(1);
+  const pageSize = 24;
 
   function selectSource(source: Source) {
     selectedSource = selectedSource === source ? null : source;
@@ -112,6 +114,22 @@
         a.word.localeCompare(b.word, undefined, { sensitivity: "base" }),
       ),
   );
+
+  const totalPages = $derived(Math.max(1, Math.ceil(filteredWordCards.length / pageSize)));
+  const paginatedWordCards = $derived(
+    filteredWordCards.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+  );
+
+  $effect(() => {
+    selectedSource;
+    selectedUnitId;
+    searchQuery;
+    currentPage = 1;
+  });
+
+  $effect(() => {
+    if (currentPage > totalPages) currentPage = totalPages;
+  });
 
   $effect(() => {
     if (
@@ -317,7 +335,7 @@
         {:else}
           <div class="cards-scroll">
             <div class="row g-3 cards-grid">
-              {#each filteredWordCards as card (card.id)}
+              {#each paginatedWordCards as card (card.id)}
                 <div class="col-12 col-sm-6 col-xl-4">
                   <button
                     type="button"
@@ -353,6 +371,27 @@
               {/each}
             </div>
           </div>
+          {#if totalPages > 1}
+            <nav class="d-flex align-items-center justify-content-center gap-3 mt-4" aria-label="Gallery pages">
+              <button
+                type="button"
+                class="btn btn-outline-dark btn-sm"
+                disabled={currentPage === 1}
+                onclick={() => (currentPage -= 1)}
+              >
+                Previous
+              </button>
+              <span class="small text-muted">Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                class="btn btn-outline-dark btn-sm"
+                disabled={currentPage === totalPages}
+                onclick={() => (currentPage += 1)}
+              >
+                Next
+              </button>
+            </nav>
+          {/if}
         {/if}
       </div>
     </main>
