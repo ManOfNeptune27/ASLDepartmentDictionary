@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
 import { deleteGif, uploadGifBuffer } from '$lib/r2';
-import { isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
+import { hashPassword, isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -345,7 +345,7 @@ export const actions: Actions = {
     try {
       await db.execute({
         sql: `INSERT INTO teachers (username, password, created_at) VALUES (?, ?, ?)`,
-        args: [username, password, new Date().toISOString()]
+        args: [username, await hashPassword(password), new Date().toISOString()]
       });
     } catch {
       return fail(400, { success: false, errors: { teacher: 'That username is already taken.' } } as any);

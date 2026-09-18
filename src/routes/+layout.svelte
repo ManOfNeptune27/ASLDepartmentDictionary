@@ -1,5 +1,6 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.png';
+	import '../app.css';
 
 	let { children } = $props();
 </script>
@@ -9,7 +10,7 @@
 	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6454601651628271" crossorigin="anonymous"></script>
 </svelte:head>
 
-<header class="text-white py-3" style="background-color: rgb(64, 64, 64);">
+<header class="text-white py-3 app-header">
 	<div class="container-fluid d-flex align-items-center px-3">
 		<a href="/" class="text-decoration-none text-white">
 			<h1 class="m-0 app-title">ASL Dictionary</h1>
