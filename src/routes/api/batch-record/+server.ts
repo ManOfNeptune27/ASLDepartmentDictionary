@@ -4,8 +4,6 @@ import { db, initDb } from '$lib/db';
 import { deleteGif } from '$lib/r2';
 import { isTeacherAuthenticated } from '$lib/server/auth';
 
-const storageLimitBytes = 9.8 * 1024 * 1024 * 1024;
-
 export const POST = async ({ request, cookies }: RequestEvent) => {
   if (!isTeacherAuthenticated(cookies)) {
     return json({ error: 'Unauthorized' }, { status: 401 });
@@ -27,12 +25,6 @@ export const POST = async ({ request, cookies }: RequestEvent) => {
 
   try {
     await initDb();
-    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
-    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
-    if (totalSize + gifSize > storageLimitBytes) {
-      return json({ error: 'Storage limit reached.' }, { status: 400 });
-    }
-
     const result = await db.execute({
       sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, gif_size, submitted_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

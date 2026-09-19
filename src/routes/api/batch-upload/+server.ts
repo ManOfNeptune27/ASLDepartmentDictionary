@@ -4,8 +4,6 @@ import { db, initDb } from '$lib/db';
 import { deleteGif, uploadGifBuffer } from '$lib/r2';
 import { isTeacherAuthenticated } from '$lib/server/auth';
 
-const storageLimitBytes = 9.8 * 1024 * 1024 * 1024;
-
 function getBasename(filename: string) {
   return filename.split(/[\\/]/).pop() ?? filename;
 }
@@ -39,12 +37,6 @@ export const POST = async ({ request, cookies }: RequestEvent) => {
 
   try {
     await initDb();
-    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
-    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
-    if (totalSize + file.size > storageLimitBytes) {
-      return json({ error: 'Storage limit reached.' }, { status: 400 });
-    }
-
     const gifUrl = await uploadGifBuffer(buffer, filename);
     try {
       const result = await db.execute({

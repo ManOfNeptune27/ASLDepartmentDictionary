@@ -290,22 +290,18 @@
 
       <!-- Storage Usage -->
       <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <span class="small fw-semibold">Storage Usage</span>
-          <span class="small text-muted">{data.storageMB} MB / 9,800 MB</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="small fw-semibold">Storage Used</span>
+          <span class="small text-muted">{data.storageGB.toFixed(1)} GB</span>
         </div>
-        <div class="progress" style="height: 8px;">
-          <div
-            class="progress-bar {data.storagePercent > 90 ? 'bg-danger' : data.storagePercent > 75 ? 'bg-warning' : 'bg-success'}"
-            role="progressbar"
-            style="width: {data.storagePercent}%"
-            aria-valuenow={data.storagePercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          ></div>
-        </div>
-        {#if data.storagePercent > 90}
-          <div class="small text-danger mt-1">Storage almost full! Please delete old GIFs.</div>
+        {#if data.isAdmin}
+          <details class="small mt-1">
+            <summary class="storage-cost-summary">Show estimated monthly cost</summary>
+            <div class="text-muted mt-1">
+              First 10 GB free. {Math.max(0, data.storageGB - 10).toFixed(1)} GB billed at $0.015/GB-month:
+              <strong>${(Math.max(0, data.storageGB - 10) * 0.015).toFixed(2)} per month</strong>.
+            </div>
+          </details>
         {/if}
       </div>
 
