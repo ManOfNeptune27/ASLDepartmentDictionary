@@ -14,6 +14,9 @@
   let unitSelectionByBook = $state<Record<string, string>>({});
   let newUnitByBook = $state<Record<string, string>>({});
   let deleteSearch = $state("");
+  let duplicateFilter = $state("all");
+  let signPage = $state(1);
+  const signsPerPage = 30;
   let uploading = $state(false);
   let uploadError = $state("");
   let batchUploading = $state(false);
@@ -60,11 +63,51 @@
     editNewUnitByBook = {};
   }
 
-  const filteredSigns = $derived(
-    (data?.signs ?? []).filter((sign: any) =>
-      sign.word.toLowerCase().includes(deleteSearch.toLowerCase()),
+  function normalizeSignName(word: string) {
+    return word.trim().toLowerCase();
+  }
+
+  const duplicateNames = $derived(
+    new Set(
+      (data?.signs ?? [])
+        .map((sign: any) => normalizeSignName(sign.word))
+        .filter(
+          (word: string, index: number, words: string[]) =>
+            word && words.indexOf(word) !== index,
+        ),
     ),
   );
+
+  const filteredSigns = $derived(
+    (data?.signs ?? []).filter((sign: any) => {
+      const matchesSearch = normalizeSignName(sign.word).includes(
+        normalizeSignName(deleteSearch),
+      );
+      const isDuplicate = duplicateNames.has(normalizeSignName(sign.word));
+      return matchesSearch && (duplicateFilter === "duplicates" ? isDuplicate : true);
+    }),
+  );
+
+  const totalSignPages = $derived(
+    Math.max(1, Math.ceil(filteredSigns.length / signsPerPage)),
+  );
+
+  const paginatedSigns = $derived(
+    filteredSigns.slice(
+      (signPage - 1) * signsPerPage,
+      signPage * signsPerPage,
+    ),
+  );
+
+  $effect(() => {
+    deleteSearch;
+    duplicateFilter;
+    signPage = 1;
+  });
+
+  $effect(() => {
+    if (signPage > totalSignPages) signPage = totalSignPages;
+  });
 
   $effect(() => {
     if (form?.values) {
@@ -290,22 +333,18 @@
 
       <!-- Storage Usage -->
       <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <span class="small fw-semibold">Storage Usage</span>
-          <span class="small text-muted">{data.storageMB} MB / 9,800 MB</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="small fw-semibold">Storage Used</span>
+          <span class="small text-muted">{data.storageGB.toFixed(1)} GB</span>
         </div>
-        <div class="progress" style="height: 8px;">
-          <div
-            class="progress-bar {data.storagePercent > 90 ? 'bg-danger' : data.storagePercent > 75 ? 'bg-warning' : 'bg-success'}"
-            role="progressbar"
-            style="width: {data.storagePercent}%"
-            aria-valuenow={data.storagePercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          ></div>
-        </div>
-        {#if data.storagePercent > 90}
-          <div class="small text-danger mt-1">Storage almost full! Please delete old GIFs.</div>
+        {#if data.isAdmin}
+          <details class="small mt-1">
+            <summary class="storage-cost-summary">Show estimated monthly cost</summary>
+            <div class="text-muted mt-1">
+              First 10 GB free. {Math.max(0, data.storageGB - 10).toFixed(1)} GB billed at $0.015/GB-month:
+              <strong>${(Math.max(0, data.storageGB - 10) * 0.015).toFixed(2)} per month</strong>.
+            </div>
+          </details>
         {/if}
       </div>
 
@@ -561,13 +600,23 @@
       <!-- Existing Signs -->
       <h3 class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
 
-      <input type="search" class="form-control mb-3" placeholder="Search signs to delete..." bind:value={deleteSearch} aria-label="Search signs" />
+      <div class="row g-2 mb-3">
+        <div class="col-12 col-md-8">
+          <input type="search" class="form-control" placeholder="Search signs to edit or delete..." bind:value={deleteSearch} aria-label="Search signs" />
+        </div>
+        <div class="col-12 col-md-4">
+          <select class="form-select" bind:value={duplicateFilter} aria-label="Filter duplicate signs">
+            <option value="all">All signs</option>
+            <option value="duplicates">Duplicate names only</option>
+          </select>
+        </div>
+      </div>
 
       {#if filteredSigns.length === 0}
         <p class="text-muted">No signs match your search.</p>
       {:else}
         <div class="row g-3">
-          {#each filteredSigns as sign}
+          {#each paginatedSigns as sign}
             <div class="col-12 col-sm-6 col-xl-4">
               <div class="border rounded p-3 h-100 d-flex flex-column gap-2">
                 {#if sign.gifUrl}
@@ -698,6 +747,27 @@
             </div>
           {/each}
         </div>
+        {#if totalSignPages > 1}
+          <nav class="d-flex align-items-center justify-content-center gap-3 mt-4" aria-label="Admin sign pages">
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              disabled={signPage === 1}
+              onclick={() => (signPage -= 1)}
+            >
+              Previous
+            </button>
+            <span class="small text-muted">Page {signPage} of {totalSignPages}</span>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              disabled={signPage === totalSignPages}
+              onclick={() => (signPage += 1)}
+            >
+              Next
+            </button>
+          </nav>
+        {/if}
       {/if}
     </div>
   </div>

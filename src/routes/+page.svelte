@@ -353,6 +353,8 @@
                           src={card.gifUrl}
                           alt={card.word}
                           class="gif-thumb"
+                          loading="lazy"
+                          decoding="async"
                         />
                       </div>
                     {:else}

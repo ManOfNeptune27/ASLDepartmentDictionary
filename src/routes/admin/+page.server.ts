@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
 import { deleteGif, uploadGifBuffer } from '$lib/r2';
-import { isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
+import { hashPassword, isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at,
            s.handshape, s.location, s.movement, s.palm_orientation, s.non_manual_signals
     FROM signs s
-    ORDER BY s.word ASC
+    ORDER BY LOWER(s.word) ASC, s.id ASC
   `);
 
   const booksResult = await db.execute(`
@@ -79,13 +79,11 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
   const storageSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
   const totalStorageBytes = Number(storageSizeResult.rows[0]?.total ?? 0);
-  const storageLimitBytes = 9.8 * 1024 * 1024 * 1024;
-  const storagePercent = Math.round((totalStorageBytes / storageLimitBytes) * 100);
-  const storageMB = (totalStorageBytes / (1024 * 1024)).toFixed(1);
+  const storageGB = totalStorageBytes / (1024 ** 3);
 
   const isAdmin = isLoggedInUserAdmin(cookies);
 
-  return { signs, unitsByBook, teachers, isAdmin, storagePercent, storageMB };
+  return { signs, unitsByBook, teachers, isAdmin, storageGB };
 };
 
 export const actions: Actions = {
@@ -110,14 +108,6 @@ export const actions: Actions = {
     }
 
     await initDb();
-    const storageLimitBytes = 9.8 * 1024 * 1024 * 1024;
-    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
-    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
-    const batchSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize + batchSize > storageLimitBytes) {
-      return fail(400, { success: false, errors: { batch: 'This batch exceeds the 9.8GB storage limit.' } } as any);
-    }
-
     const results: { filename: string; word: string; success: boolean; error?: string }[] = [];
 
     for (const file of files) {
@@ -239,22 +229,6 @@ export const actions: Actions = {
 
     await initDb();
 
-    const STORAGE_LIMIT_BYTES = 9.8 * 1024 * 1024 * 1024;
-    const totalSizeResult = await db.execute(`SELECT SUM(gif_size) as total FROM signs`);
-    const totalSize = Number(totalSizeResult.rows[0]?.total ?? 0);
-
-    if (totalSize + gifSize > STORAGE_LIMIT_BYTES) {
-      return fail(400, {
-        success: false,
-        errors: { gif: 'Storage limit reached (9.8GB). Please contact the administrator to remove old GIFs before uploading new ones.' } as Record<string, string>,
-        values: {
-          word, gloss, books, bookUnitPairs: rawPairs,
-          handshape, location, movement, palmOrientation,
-          nonManualSignals, allowDuplicate: allowDuplicate ? 'true' : ''
-        }
-      });
-    }
-
     const submittedWord = normalizeWord(word);
     let duplicateNotice = '';
 
@@ -345,7 +319,7 @@ export const actions: Actions = {
     try {
       await db.execute({
         sql: `INSERT INTO teachers (username, password, created_at) VALUES (?, ?, ?)`,
-        args: [username, password, new Date().toISOString()]
+        args: [username, await hashPassword(password), new Date().toISOString()]
       });
     } catch {
       return fail(400, { success: false, errors: { teacher: 'That username is already taken.' } } as any);
