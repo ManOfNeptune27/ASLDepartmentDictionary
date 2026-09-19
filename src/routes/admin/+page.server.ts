@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at,
            s.handshape, s.location, s.movement, s.palm_orientation, s.non_manual_signals
     FROM signs s
-    ORDER BY s.word ASC
+    ORDER BY LOWER(s.word) ASC, s.id ASC
   `);
 
   const booksResult = await db.execute(`
