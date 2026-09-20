@@ -2,8 +2,8 @@
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
   import { fade, fly, slide } from "svelte/transition";
-  import { onMount } from "svelte";
-  import { sourceData, sources, type Source, type WordEntry } from "$lib";
+  import { goto } from "$app/navigation";
+  import { sources, type Source } from "$lib";
 
   type WordCard = {
     id: string;
@@ -38,6 +38,12 @@
     MISCELLANEOUS: "miscellaneous",
   };
 
+  const sourceDisplayNames: Record<string, string> = {
+    "Signing Naturally": "SN",
+    "True Way ASL": "TWA",
+    MISCELLANEOUS: "MISCELLANEOUS",
+  };
+
   const parameterDefinitions: Record<ParameterKey, string> = {
     handshape: "The specific configuration of the fingers and hand.",
     location:
@@ -54,22 +60,39 @@
   let searchQuery = $state("");
   let selectedCardId = $state<string | null>(null);
   let currentPage = $state(1);
-  const pageSize = 24;
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   function selectSource(source: Source) {
     selectedSource = selectedSource === source ? null : source;
     selectedUnitId = null;
+    navigateTo(selectedSource, null, 1, searchQuery);
   }
 
   function selectUnit(unitId: string) {
     selectedUnitId = selectedUnitId === unitId ? null : unitId;
+    navigateTo(selectedSource, selectedUnitId, 1, searchQuery);
   }
 
-  function toWordAndGloss(entry: WordEntry) {
-    if (typeof entry === "string") {
-      return { word: entry, gloss: entry.toUpperCase() };
-    }
-    return { word: entry.word, gloss: entry.gloss };
+  function navigateTo(
+    source: Source | null,
+    unit: string | null,
+    page: number,
+    search: string,
+  ) {
+    const params = new URLSearchParams();
+    const book = source ? bookIdToName[source] : "";
+    if (book) params.set("book", book);
+    if (unit) params.set("unit", unit);
+    if (search.trim()) params.set("search", search.trim());
+    if (page > 1) params.set("page", String(page));
+    goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
+  }
+
+  function handleSearchInput() {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      navigateTo(selectedSource, selectedUnitId, 1, searchQuery);
+    }, 250);
   }
 
   const bookIdToName: Record<string, string> = {
@@ -84,11 +107,11 @@
       : [],
   );
 
-  const allWordCards = $derived(
+  const wordCards = $derived(
     data.signs.map((sign: any) => ({
       id: String(sign.id),
       sourceId: bookToSourceId[sign.books[0]?.book ?? ""] ?? "miscellaneous",
-      sourceLabel: sign.books[0]?.book ?? "MISCELLANEOUS",
+      sourceLabel: sourceDisplayNames[sign.books[0]?.book ?? "MISCELLANEOUS"] ?? "MISCELLANEOUS",
       unitId: sign.books[0]?.unit ?? "uncategorized",
       unitName: sign.books[0]?.unit ?? "Uncategorized",
       word: sign.word,
@@ -98,81 +121,31 @@
     })) as WordCard[],
   );
 
-  const filteredWordCards = $derived(
-    allWordCards
-      .filter((card: WordCard) => {
-        if (selectedSource && card.sourceId !== selectedSource) return false;
-        if (selectedUnitId && card.unitId !== selectedUnitId) return false;
-        if (
-          searchQuery.trim() &&
-          !card.word.toLowerCase().includes(searchQuery.trim().toLowerCase())
-        )
-          return false;
-        return true;
-      })
-      .sort((a: WordCard, b: WordCard) =>
-        a.word.localeCompare(b.word, undefined, { sensitivity: "base" }),
-      ),
-  );
-
-  const totalPages = $derived(Math.max(1, Math.ceil(filteredWordCards.length / pageSize)));
-  const paginatedWordCards = $derived(
-    filteredWordCards.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-  );
+  const totalPages = $derived(data.totalPages);
+  const paginatedWordCards = $derived(wordCards);
 
   $effect(() => {
-    selectedSource;
-    selectedUnitId;
-    searchQuery;
-    currentPage = 1;
-  });
-
-  $effect(() => {
-    if (currentPage > totalPages) currentPage = totalPages;
+    selectedSource = data.filters.book
+      ? (Object.entries(bookIdToName).find(([, name]) => name === data.filters.book)?.[0] as Source | undefined) ?? null
+      : null;
+    selectedUnitId = data.filters.unit || null;
+    searchQuery = data.filters.search;
+    currentPage = data.page;
   });
 
   $effect(() => {
     if (
       selectedCardId &&
-      !filteredWordCards.find((card: WordCard) => card.id === selectedCardId)
+      !wordCards.find((card: WordCard) => card.id === selectedCardId)
     ) {
       selectedCardId = null;
     }
   });
 
   const selectedCard = $derived(
-    filteredWordCards.find((card: WordCard) => card.id === selectedCardId) ??
+    wordCards.find((card: WordCard) => card.id === selectedCardId) ??
       null,
   );
-
-  function drawFirstFrame(canvas: HTMLCanvasElement, gifUrl: string) {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const ctx = canvas.getContext("2d");
-      if (ctx) ctx.drawImage(img, 0, 0, 150, 150);
-    };
-    img.src = gifUrl;
-  }
-
-  function refreshThumbnails() {
-    setTimeout(() => {
-      document.querySelectorAll("canvas.gif-thumb").forEach((el) => {
-        const canvas = el as HTMLCanvasElement;
-        const gif = canvas.dataset.gif;
-        if (gif) drawFirstFrame(canvas, gif);
-      });
-    }, 50);
-  }
-
-  onMount(() => {
-    refreshThumbnails();
-  });
-
-  $effect(() => {
-    filteredWordCards;
-    refreshThumbnails();
-  });
 </script>
 
 <div class="container-fluid">
@@ -242,25 +215,26 @@
             class="form-control gallery-search"
             placeholder="Search signs..."
             bind:value={searchQuery}
+            oninput={handleSearchInput}
             aria-label="Search signs"
           />
         </div>
         <p class="text-muted content-subtitle mb-3">
           {#if searchQuery.trim() && selectedSource && selectedUnitId}
-            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}"
+            Showing {data.total} item(s) matching "{searchQuery.trim()}"
             in the selected source and unit.
           {:else if searchQuery.trim() && selectedSource}
-            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}"
+            Showing {data.total} item(s) matching "{searchQuery.trim()}"
             in the selected source.
           {:else if searchQuery.trim()}
-            Showing {filteredWordCards.length} item(s) matching "{searchQuery.trim()}".
+            Showing {data.total} item(s) matching "{searchQuery.trim()}".
           {:else if selectedSource && selectedUnitId}
-            Showing {filteredWordCards.length} item(s) from the selected source and
+            Showing {data.total} item(s) from the selected source and
             unit.
           {:else if selectedSource}
-            Showing {filteredWordCards.length} item(s) from the selected source.
+            Showing {data.total} item(s) from the selected source.
           {:else}
-            Showing all {filteredWordCards.length} item(s).
+            Showing all {data.total} item(s).
           {/if}
         </p>
 
@@ -330,7 +304,7 @@
           </div>
         {/if}
 
-        {#if filteredWordCards.length === 0}
+        {#if data.signs.length === 0}
           <p class="text-muted">No items match this filter yet.</p>
         {:else}
           <div class="cards-scroll">
@@ -366,7 +340,9 @@
                     {/if}
                     <div class="word-button fw-semibold">{card.word}</div>
                     <div class="small">{card.gloss}</div>
-                    <div class="small text-muted">{card.sourceLabel}</div>
+                    <div class="source-badge source-{card.sourceId}">
+                      {card.sourceLabel}
+                    </div>
                     <div class="small text-muted">{card.unitName}</div>
                   </button>
                 </div>
@@ -379,7 +355,7 @@
                 type="button"
                 class="btn btn-outline-dark btn-sm"
                 disabled={currentPage === 1}
-                onclick={() => (currentPage -= 1)}
+                onclick={() => navigateTo(selectedSource, selectedUnitId, currentPage - 1, searchQuery)}
               >
                 Previous
               </button>
@@ -388,7 +364,7 @@
                 type="button"
                 class="btn btn-outline-dark btn-sm"
                 disabled={currentPage === totalPages}
-                onclick={() => (currentPage += 1)}
+                onclick={() => navigateTo(selectedSource, selectedUnitId, currentPage + 1, searchQuery)}
               >
                 Next
               </button>
@@ -419,6 +395,32 @@
     font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
     padding: clamp(0.4rem, 0.35rem + 0.2vw, 0.6rem)
       clamp(0.6rem, 0.5rem + 0.35vw, 0.9rem);
+  }
+
+  .source-badge {
+    align-self: flex-start;
+    border: 1px solid currentColor;
+    border-radius: 0;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.22rem 0.55rem;
+    color: #fff;
+  }
+
+  .source-naturally {
+    background-color: #18794e;
+    border-color: #18794e;
+  }
+
+  .source-trueway {
+    background-color: #1769aa;
+    border-color: #1769aa;
+  }
+
+  .source-miscellaneous {
+    background-color: #9a6700;
+    border-color: #9a6700;
   }
 
   .gif-card {

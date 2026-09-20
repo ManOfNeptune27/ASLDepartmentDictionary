@@ -42,7 +42,7 @@ export const sourceData: Record<Source, SourceGroup> = {
 };
 
 export const sources: { id: Source; label: string }[] = [
-  { id: 'naturally', label: 'Signing Naturally' },
-  { id: 'trueway', label: 'True Way ASL' },
+  { id: 'naturally', label: 'SN' },
+  { id: 'trueway', label: 'TWA' },
   { id: 'miscellaneous', label: 'MISCELLANEOUS' }
 ];

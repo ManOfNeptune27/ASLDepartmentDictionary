@@ -1,49 +1,24 @@
-import { db, initDb } from '$lib/db';
+import { initDb } from '$lib/db';
+import { listSigns, listUnitsByBook } from '$lib/server/signs';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
   await initDb();
 
-  const signsResult = await db.execute(`
-    SELECT s.id, s.word, s.gloss, s.handshape, s.location, s.movement, 
-           s.palm_orientation, s.non_manual_signals, s.gif_url
-    FROM signs s
-    ORDER BY s.word ASC
-  `);
-
-  const booksResult = await db.execute(`
-    SELECT sb.sign_id, sb.book, sb.unit
-    FROM sign_books sb
-  `);
-
-  const unitsByBook = booksResult.rows.reduce((acc: Record<string, string[]>, row) => {
-    const book = String(row.book);
-    const unit = String(row.unit);
-    if (!acc[book]) acc[book] = [];
-    if (!acc[book].includes(unit)) acc[book].push(unit);
-    return acc;
-  }, {});
-
-  const signs = signsResult.rows.map((row) => {
-    const books = booksResult.rows
-      .filter((b) => b.sign_id === row.id)
-      .map((b) => ({ book: String(b.book), unit: String(b.unit) }));
-
-    return {
-      id: Number(row.id),
-      word: String(row.word),
-      gloss: String(row.gloss),
-      gifUrl: String(row.gif_url),
-      parameters: {
-        handshape: String(row.handshape),
-        location: String(row.location),
-        movement: String(row.movement),
-        palmOrientation: String(row.palm_orientation),
-        nonManualSignals: String(row.non_manual_signals)
-      },
-      books
-    };
+  const result = await listSigns({
+    search: url.searchParams.get('search') ?? '',
+    book: url.searchParams.get('book') ?? '',
+    unit: url.searchParams.get('unit') ?? '',
+    page: Number(url.searchParams.get('page') ?? 1),
   });
 
-  return { signs, unitsByBook };
+  return {
+    ...result,
+    unitsByBook: await listUnitsByBook(),
+    filters: {
+      search: url.searchParams.get('search') ?? '',
+      book: url.searchParams.get('book') ?? '',
+      unit: url.searchParams.get('unit') ?? '',
+    },
+  };
 };

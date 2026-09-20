@@ -40,7 +40,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
   `);
 
   const booksResult = await db.execute(`
-    SELECT sb.sign_id, sb.book, sb.unit FROM sign_books sb
+    SELECT sb.sign_id, sb.book, sb.unit
+    FROM sign_books sb
+    ORDER BY sb.book ASC, LOWER(sb.unit) ASC, sb.unit ASC
   `);
 
   const unitsByBook = booksResult.rows.reduce((acc: Record<string, string[]>, row) => {
