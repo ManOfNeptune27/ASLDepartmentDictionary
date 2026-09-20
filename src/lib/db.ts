@@ -1,10 +1,13 @@
 import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
 import { TURSO_URL, TURSO_AUTH_TOKEN } from '$env/static/private';
 
 export const db = createClient({
   url: TURSO_URL,
   authToken: TURSO_AUTH_TOKEN,
 });
+
+export const drizzleDb = drizzle(db);
 
 export async function initDb() {
   await db.execute(`
@@ -32,9 +35,12 @@ export async function initDb() {
       FOREIGN KEY (sign_id) REFERENCES signs(id)
     )
   `);
-}
 
-await db.execute(`
+  await db.execute(`CREATE INDEX IF NOT EXISTS signs_word_idx ON signs(word)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sign_books_sign_id_idx ON sign_books(sign_id)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sign_books_book_unit_idx ON sign_books(book, unit)`);
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS teachers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
@@ -42,3 +48,4 @@ await db.execute(`
       created_at TEXT NOT NULL
     )
   `);
+}
