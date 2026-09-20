@@ -10,6 +10,13 @@
 
   const PAIR_SEP = "|||";
 
+  function sourceBadgeClass(book: string) {
+    if (book === "Signing Naturally") return "admin-source-naturally";
+    if (book === "True Way ASL") return "admin-source-trueway";
+    if (book === "MISCELLANEOUS") return "admin-source-miscellaneous";
+    return "admin-source-other";
+  }
+
   let selectedBooks = $state<string[]>([]);
   let unitSelectionByBook = $state<Record<string, string>>({});
   let newUnitByBook = $state<Record<string, string>>({});
@@ -615,6 +622,27 @@
       {#if filteredSigns.length === 0}
         <p class="text-muted">No signs match your search.</p>
       {:else}
+        {#if totalSignPages > 1}
+          <nav class="d-flex align-items-center justify-content-center gap-3 mb-4" aria-label="Admin sign pages">
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              disabled={signPage === 1}
+              onclick={() => (signPage -= 1)}
+            >
+              Previous
+            </button>
+            <span class="small text-muted">Page {signPage} of {totalSignPages}</span>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              disabled={signPage === totalSignPages}
+              onclick={() => (signPage += 1)}
+            >
+              Next
+            </button>
+          </nav>
+        {/if}
         <div class="row g-3">
           {#each paginatedSigns as sign}
             <div class="col-12 col-sm-6 col-xl-4">
@@ -630,7 +658,7 @@
                 <div class="small text-muted">{sign.gloss}</div>
                 <div class="small text-muted">
                   {#each sign.books as b}
-                    <span class="badge bg-secondary me-1">{b.book} → {b.unit}</span>
+                    <span class="badge admin-source-badge {sourceBadgeClass(b.book)} me-1">{b.book} → {b.unit}</span>
                   {/each}
                 </div>
                 <div class="mt-auto d-flex flex-column gap-2">
@@ -747,27 +775,6 @@
             </div>
           {/each}
         </div>
-        {#if totalSignPages > 1}
-          <nav class="d-flex align-items-center justify-content-center gap-3 mt-4" aria-label="Admin sign pages">
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm"
-              disabled={signPage === 1}
-              onclick={() => (signPage -= 1)}
-            >
-              Previous
-            </button>
-            <span class="small text-muted">Page {signPage} of {totalSignPages}</span>
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm"
-              disabled={signPage === totalSignPages}
-              onclick={() => (signPage += 1)}
-            >
-              Next
-            </button>
-          </nav>
-        {/if}
       {/if}
     </div>
   </div>
@@ -784,5 +791,31 @@
     width: 100%;
     height: 150px;
     border: 1px dashed var(--bs-border-color);
+  }
+
+  .admin-source-badge {
+    border: 1px solid transparent;
+    border-radius: 0;
+    color: #fff;
+  }
+
+  .admin-source-naturally {
+    background-color: #18794e;
+    border-color: #18794e;
+  }
+
+  .admin-source-trueway {
+    background-color: #1769aa;
+    border-color: #1769aa;
+  }
+
+  .admin-source-miscellaneous {
+    background-color: #9a6700;
+    border-color: #9a6700;
+  }
+
+  .admin-source-other {
+    background-color: #6c757d;
+    border-color: #6c757d;
   }
 </style>
