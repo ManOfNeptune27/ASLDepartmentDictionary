@@ -28,6 +28,7 @@
 		data-ad-format="auto"
 		data-full-width-responsive="true">
 	</ins>
+	<a class="privacy-link d-block mt-2" href="/privacy">Privacy Policy</a>
 </footer>
 
 <style>
