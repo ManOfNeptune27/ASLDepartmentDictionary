@@ -334,7 +334,9 @@
                     {/if}
                     <div class="word-button fw-semibold">{card.word}</div>
                     <div class="small">{card.gloss}</div>
-                    <div class="small text-muted">{card.sourceLabel}</div>
+                    <div class="source-badge source-{card.sourceId}">
+                      {card.sourceLabel}
+                    </div>
                     <div class="small text-muted">{card.unitName}</div>
                   </button>
                 </div>
@@ -387,6 +389,32 @@
     font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
     padding: clamp(0.4rem, 0.35rem + 0.2vw, 0.6rem)
       clamp(0.6rem, 0.5rem + 0.35vw, 0.9rem);
+  }
+
+  .source-badge {
+    align-self: flex-start;
+    border: 1px solid currentColor;
+    border-radius: 0;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.22rem 0.55rem;
+    color: #fff;
+  }
+
+  .source-naturally {
+    background-color: #18794e;
+    border-color: #18794e;
+  }
+
+  .source-trueway {
+    background-color: #1769aa;
+    border-color: #1769aa;
+  }
+
+  .source-miscellaneous {
+    background-color: #9a6700;
+    border-color: #9a6700;
   }
 
   .gif-card {
