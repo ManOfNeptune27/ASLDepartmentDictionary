@@ -3,8 +3,8 @@
   const ADD_NEW_UNIT_VALUE = "__add_new_unit__";
 
   const bookOptions = [
-    { value: "Signing Naturally", label: "Signing Naturally" },
-    { value: "True Way ASL", label: "True Way ASL" },
+    { value: "Signing Naturally", label: "SN" },
+    { value: "True Way ASL", label: "TWA" },
     { value: "MISCELLANEOUS", label: "MISCELLANEOUS" },
   ];
 

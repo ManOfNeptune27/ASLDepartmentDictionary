@@ -38,6 +38,12 @@
     MISCELLANEOUS: "miscellaneous",
   };
 
+  const sourceDisplayNames: Record<string, string> = {
+    "Signing Naturally": "SN",
+    "True Way ASL": "TWA",
+    MISCELLANEOUS: "MISCELLANEOUS",
+  };
+
   const parameterDefinitions: Record<ParameterKey, string> = {
     handshape: "The specific configuration of the fingers and hand.",
     location:
@@ -105,7 +111,7 @@
     data.signs.map((sign: any) => ({
       id: String(sign.id),
       sourceId: bookToSourceId[sign.books[0]?.book ?? ""] ?? "miscellaneous",
-      sourceLabel: sign.books[0]?.book ?? "MISCELLANEOUS",
+      sourceLabel: sourceDisplayNames[sign.books[0]?.book ?? "MISCELLANEOUS"] ?? "MISCELLANEOUS",
       unitId: sign.books[0]?.unit ?? "uncategorized",
       unitName: sign.books[0]?.unit ?? "Uncategorized",
       word: sign.word,
