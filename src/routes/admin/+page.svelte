@@ -21,7 +21,7 @@
   let unitSelectionByBook = $state<Record<string, string>>({});
   let newUnitByBook = $state<Record<string, string>>({});
   let deleteSearch = $state("");
-  let duplicateFilter = $state("all");
+  let signFilter = $state("all");
   let signPage = $state(1);
   const signsPerPage = 30;
   let uploading = $state(false);
@@ -91,7 +91,12 @@
         normalizeSignName(deleteSearch),
       );
       const isDuplicate = duplicateNames.has(normalizeSignName(sign.word));
-      return matchesSearch && (duplicateFilter === "duplicates" ? isDuplicate : true);
+      const matchesFilter =
+        signFilter === "all" ||
+        (signFilter === "duplicates"
+          ? isDuplicate
+          : sign.books?.some((book: any) => book.book === signFilter));
+      return matchesSearch && matchesFilter;
     }),
   );
 
@@ -108,7 +113,7 @@
 
   $effect(() => {
     deleteSearch;
-    duplicateFilter;
+    signFilter;
     signPage = 1;
   });
 
@@ -612,9 +617,12 @@
           <input type="search" class="form-control" placeholder="Search signs to edit or delete..." bind:value={deleteSearch} aria-label="Search signs" />
         </div>
         <div class="col-12 col-md-4">
-          <select class="form-select" bind:value={duplicateFilter} aria-label="Filter duplicate signs">
+          <select class="form-select" bind:value={signFilter} aria-label="Filter existing signs">
             <option value="all">All signs</option>
-            <option value="duplicates">Duplicate names only</option>
+            <option value="duplicates">Duplicate Signs</option>
+            <option value="Signing Naturally">SN</option>
+            <option value="True Way ASL">TWA</option>
+            <option value="MISCELLANEOUS">MISC</option>
           </select>
         </div>
       </div>
@@ -775,6 +783,27 @@
             </div>
           {/each}
         </div>
+        {#if totalSignPages > 1}
+          <nav class="d-flex align-items-center justify-content-center gap-3 mt-4" aria-label="Admin sign pages">
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              disabled={signPage === 1}
+              onclick={() => (signPage -= 1)}
+            >
+              Previous
+            </button>
+            <span class="small text-muted">Page {signPage} of {totalSignPages}</span>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              disabled={signPage === totalSignPages}
+              onclick={() => (signPage += 1)}
+            >
+              Next
+            </button>
+          </nav>
+        {/if}
       {/if}
     </div>
   </div>
