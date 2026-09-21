@@ -1,13 +1,19 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import favicon from '$lib/assets/favicon.png';
 	import '../app.css';
 
 	let { children } = $props();
+
+	onMount(() => {
+		const ads = (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle ?? [];
+		ads.push({});
+		(window as Window & { adsbygoogle?: unknown[] }).adsbygoogle = ads;
+	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6454601651628271" crossorigin="anonymous"></script>
 </svelte:head>
 
 <header class="text-white py-3 app-header">
