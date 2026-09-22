@@ -464,23 +464,26 @@
   }
 
   .unit-list .btn-outline-dark {
-    --bs-btn-color: var(--bs-black);
-    --bs-btn-border-color: var(--bs-black);
-    --bs-btn-hover-color: var(--bs-white);
-    --bs-btn-hover-bg: var(--bs-black);
-    --bs-btn-hover-border-color: var(--bs-black);
-    --bs-btn-active-color: var(--bs-white);
-    --bs-btn-active-bg: var(--bs-black);
-    --bs-btn-active-border-color: var(--bs-black);
+    --bs-btn-color: var(--asl-muted);
+    --bs-btn-border-color: var(--asl-line);
+    --bs-btn-hover-color: var(--asl-text);
+    --bs-btn-hover-bg: var(--asl-surface-raised);
+    --bs-btn-hover-border-color: var(--asl-muted);
+    --bs-btn-active-color: var(--asl-text);
+    --bs-btn-active-bg: var(--asl-surface-raised);
+    --bs-btn-active-border-color: var(--asl-muted);
   }
 
   .unit-list .btn-dark {
-    --bs-btn-bg: var(--bs-black);
-    --bs-btn-border-color: var(--bs-black);
-    --bs-btn-hover-bg: var(--bs-black);
-    --bs-btn-hover-border-color: var(--bs-black);
-    --bs-btn-active-bg: var(--bs-black);
-    --bs-btn-active-border-color: var(--bs-black);
+    --bs-btn-color: var(--asl-bg);
+    --bs-btn-bg: var(--asl-accent);
+    --bs-btn-border-color: var(--asl-accent);
+    --bs-btn-hover-color: var(--asl-bg);
+    --bs-btn-hover-bg: var(--asl-accent);
+    --bs-btn-hover-border-color: var(--asl-accent);
+    --bs-btn-active-color: var(--asl-bg);
+    --bs-btn-active-bg: var(--asl-accent);
+    --bs-btn-active-border-color: var(--asl-accent);
   }
 
   .parameter-label {
