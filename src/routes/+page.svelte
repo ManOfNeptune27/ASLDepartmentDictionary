@@ -62,6 +62,56 @@
   let currentPage = $state(1);
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
+  function staticGifPreview(node: HTMLCanvasElement, url: string) {
+    let image: HTMLImageElement | null = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || image) return;
+
+        image = new Image();
+        image.decoding = "async";
+        image.onload = () => {
+          const context = node.getContext("2d");
+          if (!context) return;
+
+          const previewSize = 150;
+          const scale = Math.max(
+            previewSize / image!.naturalWidth,
+            previewSize / image!.naturalHeight,
+          );
+          const width = image!.naturalWidth * scale;
+          const height = image!.naturalHeight * scale;
+
+          node.width = previewSize;
+          node.height = previewSize;
+          context.drawImage(
+            image!,
+            (previewSize - width) / 2,
+            (previewSize - height) / 2,
+            width,
+            height,
+          );
+          image!.src = "";
+          image = null;
+        };
+        image.src = url;
+      },
+      { rootMargin: "100px" },
+    );
+
+    observer.observe(node);
+
+    return {
+      update(nextUrl: string) {
+        url = nextUrl;
+      },
+      destroy() {
+        observer.disconnect();
+        if (image) image.src = "";
+      },
+    };
+  }
+
   function selectSource(source: Source) {
     selectedSource = selectedSource === source ? null : source;
     selectedUnitId = null;
@@ -323,13 +373,11 @@
                   >
                     {#if card.gifUrl}
                       <div class="gif-thumb-wrapper">
-                        <img
-                          src={card.gifUrl}
-                          alt={card.word}
+                        <canvas
+                          use:staticGifPreview={card.gifUrl}
                           class="gif-thumb"
-                          loading="lazy"
-                          decoding="async"
-                        />
+                          aria-label={card.word}
+                        ></canvas>
                       </div>
                     {:else}
                       <div
