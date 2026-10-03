@@ -36,9 +36,34 @@ export async function initDb() {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sentences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      gif_url TEXT NOT NULL,
+      gif_size INTEGER NOT NULL DEFAULT 0,
+      submitted_at TEXT NOT NULL
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sentence_signs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sentence_id INTEGER NOT NULL,
+      sign_id INTEGER NOT NULL,
+      position INTEGER NOT NULL,
+      FOREIGN KEY (sentence_id) REFERENCES sentences(id),
+      FOREIGN KEY (sign_id) REFERENCES signs(id),
+      UNIQUE (sentence_id, position)
+    )
+  `);
+
   await db.execute(`CREATE INDEX IF NOT EXISTS signs_word_idx ON signs(word)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS sign_books_sign_id_idx ON sign_books(sign_id)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS sign_books_book_unit_idx ON sign_books(book, unit)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sentences_text_idx ON sentences(text)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sentence_signs_sentence_id_idx ON sentence_signs(sentence_id)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sentence_signs_sign_id_idx ON sentence_signs(sign_id)`);
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS teachers (

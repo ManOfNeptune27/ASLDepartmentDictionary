@@ -45,6 +45,16 @@ export const load: PageServerLoad = async ({ cookies }) => {
     ORDER BY sb.book ASC, LOWER(sb.unit) ASC, sb.unit ASC
   `);
 
+  const sentencesResult = await db.execute(`
+    SELECT s.id, s.text, s.gif_url, s.submitted_at,
+           GROUP_CONCAT(g.word, ' ') AS linked_words
+    FROM sentences s
+    LEFT JOIN sentence_signs ss ON ss.sentence_id = s.id
+    LEFT JOIN signs g ON g.id = ss.sign_id
+    GROUP BY s.id
+    ORDER BY s.id DESC
+  `);
+
   const unitsByBook = booksResult.rows.reduce((acc: Record<string, string[]>, row) => {
     const book = String(row.book);
     const unit = String(row.unit);
@@ -73,6 +83,14 @@ export const load: PageServerLoad = async ({ cookies }) => {
     };
   });
 
+  const sentences = sentencesResult.rows.map((row) => ({
+    id: Number(row.id),
+    text: String(row.text),
+    gifUrl: String(row.gif_url),
+    submittedAt: String(row.submitted_at),
+    linkedWords: String(row.linked_words ?? ''),
+  }));
+
   const teachersResult = await db.execute(`SELECT id, username, created_at FROM teachers ORDER BY created_at ASC`);
   const teachers = teachersResult.rows.map((row) => ({
     id: Number(row.id),
@@ -86,7 +104,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
   const isAdmin = isLoggedInUserAdmin(cookies);
 
-  return { signs, unitsByBook, teachers, isAdmin, storageGB };
+  return { signs, sentences, unitsByBook, teachers, isAdmin, storageGB };
 };
 
 export const actions: Actions = {
@@ -355,6 +373,63 @@ export const actions: Actions = {
     }
 
     return { success: true, message: `${String(source.word)} duplicated. Edit the new copy below.` };
+  },
+
+  uploadSentence: async ({ request, cookies }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
+
+    const formData = await request.formData();
+    const text = toText(formData.get('text'));
+    const gifUrl = toText(formData.get('gifUrl'));
+    const gifSize = Number(formData.get('gifSize') ?? 0);
+    const errors: Record<string, string> = {};
+    if (!text) errors.text = 'Sentence text is required.';
+    if (!gifUrl) errors.gif = 'GIF upload failed or was not provided.';
+
+    const words = text.split(/\s+/).map((word) => word.replace(/[.,!?;:]+$/g, '').trim()).filter(Boolean);
+    await initDb();
+    const linkedSignIds: number[] = [];
+    const missingWords: string[] = [];
+    const ambiguousWords: string[] = [];
+
+    for (const word of words) {
+      const matches = await db.execute({
+        sql: `SELECT id FROM signs WHERE LOWER(TRIM(word)) = LOWER(TRIM(?)) ORDER BY id ASC`,
+        args: [word]
+      });
+      if (matches.rows.length === 0) missingWords.push(word);
+      else if (matches.rows.length > 1) ambiguousWords.push(word);
+      else linkedSignIds.push(Number(matches.rows[0].id));
+    }
+
+    if (missingWords.length > 0) errors.text = `No sign found for: ${missingWords.join(', ')}.`;
+    if (ambiguousWords.length > 0) {
+      errors.text = `More than one sign matches: ${ambiguousWords.join(', ')}. Rename the sentence word or resolve the duplicate first.`;
+    }
+    if (Object.keys(errors).length > 0) {
+      return fail(400, { success: false, errors, values: { text } } as any);
+    }
+
+    const result = await db.execute({
+      sql: `INSERT INTO sentences (text, gif_url, gif_size, submitted_at) VALUES (?, ?, ?, ?)`,
+      args: [text, gifUrl, gifSize, new Date().toISOString()]
+    });
+    const sentenceId = Number(result.lastInsertRowid);
+    if (!sentenceId) {
+      await deleteGif(gifUrl).catch(() => undefined);
+      return fail(500, { success: false, errors: { general: 'Failed to save sentence.' } } as any);
+    }
+
+    for (const [position, signId] of linkedSignIds.entries()) {
+      await db.execute({
+        sql: `INSERT INTO sentence_signs (sentence_id, sign_id, position) VALUES (?, ?, ?)`,
+        args: [sentenceId, signId, position]
+      });
+    }
+
+    return { success: true, message: `Sentence saved and linked to ${linkedSignIds.length} signs.` };
   },
 
   addTeacher: async ({ request, cookies }) => {

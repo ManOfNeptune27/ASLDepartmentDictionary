@@ -39,6 +39,38 @@ export const signBooks = sqliteTable(
   }),
 );
 
+export const sentences = sqliteTable(
+  'sentences',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    text: text('text').notNull(),
+    gifUrl: text('gif_url').notNull(),
+    gifSize: integer('gif_size').notNull().default(0),
+    submittedAt: text('submitted_at').notNull(),
+  },
+  (table) => ({
+    textIndex: index('sentences_text_idx').on(table.text),
+  }),
+);
+
+export const sentenceSigns = sqliteTable(
+  'sentence_signs',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sentenceId: integer('sentence_id').notNull(),
+    signId: integer('sign_id').notNull(),
+    position: integer('position').notNull(),
+  },
+  (table) => ({
+    sentenceIndex: index('sentence_signs_sentence_id_idx').on(table.sentenceId),
+    signIndex: index('sentence_signs_sign_id_idx').on(table.signId),
+    sentencePositionIndex: uniqueIndex('sentence_signs_sentence_position_idx').on(
+      table.sentenceId,
+      table.position,
+    ),
+  }),
+);
+
 export const teachers = sqliteTable(
   'teachers',
   {
