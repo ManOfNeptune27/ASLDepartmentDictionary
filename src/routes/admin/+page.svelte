@@ -1,4 +1,7 @@
 <script lang="ts">
+  import CategoryPill from "$lib/components/CategoryPill.svelte";
+  import SourcePill from "$lib/components/SourcePill.svelte";
+
   let { form, data }: { form: any; data: any } = $props();
   const ADD_NEW_UNIT_VALUE = "__add_new_unit__";
 
@@ -10,11 +13,10 @@
 
   const PAIR_SEP = "|||";
 
-  function sourceBadgeClass(book: string) {
-    if (book === "Signing Naturally") return "admin-source-naturally";
-    if (book === "True Way ASL") return "admin-source-trueway";
-    if (book === "MISCELLANEOUS") return "admin-source-miscellaneous";
-    return "admin-source-other";
+  function pillSource(book: string): "SN" | "TWA" | "MISCELLANEOUS" {
+    if (book === "Signing Naturally") return "SN";
+    if (book === "True Way ASL") return "TWA";
+    return "MISCELLANEOUS";
   }
 
   let selectedBooks = $state<string[]>([]);
@@ -383,7 +385,7 @@
           <div class="small mt-2">
             Saved: {form.submission.word} — {form.submission.gloss} ({form.submission.gifFileName})<br />
             {#each form.submission.bookUnitPairs as pair}
-              <span class="badge bg-secondary me-1">{pair.book} → {pair.unit}</span>
+              <span class="me-1"><SourcePill source={pillSource(pair.book)} /> <CategoryPill category={pair.unit} /></span>
             {/each}
           </div>
         </div>
@@ -523,7 +525,7 @@
 
         <div>
           <label class="form-label" for="gloss">Gloss</label>
-          <input id="gloss" name="gloss" class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}" value={form?.values?.gloss ?? "N/A"} required />
+          <input id="gloss" name="gloss" class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}" value={form?.values?.gloss ?? ""} />
           {#if form?.errors?.gloss}<div class="invalid-feedback d-block">{form.errors.gloss}</div>{/if}
         </div>
 
@@ -578,12 +580,12 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="handshape">Handshape</label>
-            <input id="handshape" name="handshape" class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}" value={form?.values?.handshape ?? "N/A"} required />
+            <input id="handshape" name="handshape" class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}" value={form?.values?.handshape ?? ""} />
             {#if form?.errors?.handshape}<div class="invalid-feedback d-block">{form.errors.handshape}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="location">Location</label>
-            <input id="location" name="location" class="form-control {form?.errors?.location ? 'is-invalid' : ''}" value={form?.values?.location ?? "N/A"} required />
+            <input id="location" name="location" class="form-control {form?.errors?.location ? 'is-invalid' : ''}" value={form?.values?.location ?? ""} />
             {#if form?.errors?.location}<div class="invalid-feedback d-block">{form.errors.location}</div>{/if}
           </div>
         </div>
@@ -591,19 +593,19 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="movement">Movement</label>
-            <input id="movement" name="movement" class="form-control {form?.errors?.movement ? 'is-invalid' : ''}" value={form?.values?.movement ?? "N/A"} required />
+            <input id="movement" name="movement" class="form-control {form?.errors?.movement ? 'is-invalid' : ''}" value={form?.values?.movement ?? ""} />
             {#if form?.errors?.movement}<div class="invalid-feedback d-block">{form.errors.movement}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="palmOrientation">Palm Orientation</label>
-            <input id="palmOrientation" name="palmOrientation" class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}" value={form?.values?.palmOrientation ?? "N/A"} required />
+            <input id="palmOrientation" name="palmOrientation" class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}" value={form?.values?.palmOrientation ?? ""} />
             {#if form?.errors?.palmOrientation}<div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>{/if}
           </div>
         </div>
 
         <div>
           <label class="form-label" for="nonManualSignals">Non-Manual Signals</label>
-          <input id="nonManualSignals" name="nonManualSignals" class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}" value={form?.values?.nonManualSignals ?? "N/A"} required />
+          <input id="nonManualSignals" name="nonManualSignals" class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}" value={form?.values?.nonManualSignals ?? ""} />
           {#if form?.errors?.nonManualSignals}<div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>{/if}
         </div>
 
@@ -696,7 +698,7 @@
                 <div class="small text-muted">{sign.gloss}</div>
                 <div class="small text-muted">
                   {#each sign.books as b}
-                    <span class="badge admin-source-badge {sourceBadgeClass(b.book)} me-1">{b.book} → {b.unit}</span>
+                    <span class="me-1"><SourcePill source={pillSource(b.book)} /> {#if b.unit === "N/A"}<span class="text-muted">N/A</span>{:else}<CategoryPill category={b.unit} />{/if}</span>
                   {/each}
                 </div>
                 <div class="mt-auto d-flex flex-column gap-2">
@@ -865,29 +867,4 @@
     border: 1px dashed var(--bs-border-color);
   }
 
-  .admin-source-badge {
-    border: 1px solid transparent;
-    border-radius: 0;
-    color: #fff;
-  }
-
-  .admin-source-naturally {
-    background-color: #18794e;
-    border-color: #18794e;
-  }
-
-  .admin-source-trueway {
-    background-color: #1769aa;
-    border-color: #1769aa;
-  }
-
-  .admin-source-miscellaneous {
-    background-color: #9a6700;
-    border-color: #9a6700;
-  }
-
-  .admin-source-other {
-    background-color: #6c757d;
-    border-color: #6c757d;
-  }
 </style>

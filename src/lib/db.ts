@@ -14,12 +14,12 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS signs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       word TEXT NOT NULL,
-      gloss TEXT NOT NULL,
-      handshape TEXT NOT NULL,
-      location TEXT NOT NULL,
-      movement TEXT NOT NULL,
-      palm_orientation TEXT NOT NULL,
-      non_manual_signals TEXT NOT NULL,
+      gloss TEXT,
+      handshape TEXT,
+      location TEXT,
+      movement TEXT,
+      palm_orientation TEXT,
+      non_manual_signals TEXT,
       gif_url TEXT NOT NULL,
       gif_size INTEGER NOT NULL DEFAULT 0,
       submitted_at TEXT NOT NULL

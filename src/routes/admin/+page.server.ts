@@ -12,6 +12,21 @@ function toText(value: FormDataEntryValue | null) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function toNullableText(value: FormDataEntryValue | null) {
+  const text = toText(value);
+  return !text || text.toUpperCase() === 'N/A' ? null : text;
+}
+
+function displayMetadata(value: unknown) {
+  const text = String(value ?? '').trim();
+  return !text || text.toUpperCase() === 'NULL' ? 'N/A' : text;
+}
+
+function nullableDatabaseValue(value: unknown) {
+  const text = String(value ?? '').trim();
+  return !text || text.toUpperCase() === 'N/A' || text.toUpperCase() === 'NULL' ? null : text;
+}
+
 function normalizeWord(value: string) {
   return value.trim().toLowerCase();
 }
@@ -70,15 +85,15 @@ export const load: PageServerLoad = async ({ cookies }) => {
     return {
       id: Number(row.id),
       word: String(row.word),
-      gloss: String(row.gloss),
+      gloss: displayMetadata(row.gloss),
       gifUrl: String(row.gif_url),
       gifSize: Number(row.gif_size ?? 0),
       submittedAt: String(row.submitted_at),
-      handshape: String(row.handshape),
-      location: String(row.location),
-      movement: String(row.movement),
-      palmOrientation: String(row.palm_orientation),
-      nonManualSignals: String(row.non_manual_signals),
+      handshape: displayMetadata(row.handshape),
+      location: displayMetadata(row.location),
+      movement: displayMetadata(row.movement),
+      palmOrientation: displayMetadata(row.palm_orientation),
+      nonManualSignals: displayMetadata(row.non_manual_signals),
       books
     };
   });
@@ -115,12 +130,12 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const files = formData.getAll('gifs').filter((value): value is File => value instanceof File);
-    const gloss = 'N/A';
-    const handshape = 'N/A';
-    const location = 'N/A';
-    const movement = 'N/A';
-    const palmOrientation = 'N/A';
-    const nonManualSignals = 'N/A';
+    const gloss = null;
+    const handshape = null;
+    const location = null;
+    const movement = null;
+    const palmOrientation = null;
+    const nonManualSignals = null;
     const book = 'MISCELLANEOUS';
     const unit = 'Uncategorized';
 
@@ -187,7 +202,7 @@ export const actions: Actions = {
     const formData = await request.formData();
 
     const word = toText(formData.get('word'));
-    const gloss = toText(formData.get('gloss'));
+    const gloss = toNullableText(formData.get('gloss'));
     const books = formData.getAll('books').map((value) => toText(value)).filter(Boolean);
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
@@ -202,11 +217,11 @@ export const actions: Actions = {
     });
 
     const allowDuplicate = toText(formData.get('allowDuplicate')) === 'true';
-    const handshape = toText(formData.get('handshape'));
-    const location = toText(formData.get('location'));
-    const movement = toText(formData.get('movement'));
-    const palmOrientation = toText(formData.get('palmOrientation'));
-    const nonManualSignals = toText(formData.get('nonManualSignals'));
+    const handshape = toNullableText(formData.get('handshape'));
+    const location = toNullableText(formData.get('location'));
+    const movement = toNullableText(formData.get('movement'));
+    const palmOrientation = toNullableText(formData.get('palmOrientation'));
+    const nonManualSignals = toNullableText(formData.get('nonManualSignals'));
 
     // Now accepts URL and size instead of file
     const gifUrl = toText(formData.get('gifUrl'));
@@ -215,7 +230,6 @@ export const actions: Actions = {
     const errors: Record<string, string> = {};
 
     if (!word) errors.word = 'Name of Sign is required.';
-    if (!gloss) errors.gloss = 'Gloss is required.';
     if (books.length === 0) {
       books.push('MISCELLANEOUS');
       bookUnitPairs.push({ book: 'MISCELLANEOUS', unit: 'Uncategorized' });
@@ -229,11 +243,6 @@ export const actions: Actions = {
       errors.bookUnitPairs = `Please select a unit for: ${missingUnits.join(', ')}.`;
     }
 
-    if (!handshape) errors.handshape = 'Handshape is required.';
-    if (!location) errors.location = 'Location is required.';
-    if (!movement) errors.movement = 'Movement is required.';
-    if (!palmOrientation) errors.palmOrientation = 'Palm orientation is required.';
-    if (!nonManualSignals) errors.nonManualSignals = 'Non-manual signals are required.';
     if (!gifUrl) errors.gif = 'GIF upload failed or was not provided.';
 
     if (Object.keys(errors).length > 0) {
@@ -354,8 +363,8 @@ export const actions: Actions = {
                               non_manual_signals, gif_url, gif_size, submitted_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        String(source.word), String(source.gloss), String(source.handshape), String(source.location),
-        String(source.movement), String(source.palm_orientation), String(source.non_manual_signals),
+        String(source.word), nullableDatabaseValue(source.gloss), nullableDatabaseValue(source.handshape), nullableDatabaseValue(source.location),
+        nullableDatabaseValue(source.movement), nullableDatabaseValue(source.palm_orientation), nullableDatabaseValue(source.non_manual_signals),
         String(source.gif_url), Number(source.gif_size ?? 0), new Date().toISOString()
       ]
     });
@@ -483,12 +492,12 @@ export const actions: Actions = {
     const formData = await request.formData();
     const id = toText(formData.get('id'));
     const word = toText(formData.get('word'));
-    const gloss = toText(formData.get('gloss'));
-    const handshape = toText(formData.get('handshape'));
-    const location = toText(formData.get('location'));
-    const movement = toText(formData.get('movement'));
-    const palmOrientation = toText(formData.get('palmOrientation'));
-    const nonManualSignals = toText(formData.get('nonManualSignals'));
+    const gloss = toNullableText(formData.get('gloss'));
+    const handshape = toNullableText(formData.get('handshape'));
+    const location = toNullableText(formData.get('location'));
+    const movement = toNullableText(formData.get('movement'));
+    const palmOrientation = toNullableText(formData.get('palmOrientation'));
+    const nonManualSignals = toNullableText(formData.get('nonManualSignals'));
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
     const PAIR_SEP = '|||';

@@ -1,19 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import favicon from '$lib/assets/favicon.png';
+	import { page } from '$app/state';
 	import '../app.css';
 
 	let { children } = $props();
-
-	onMount(() => {
-		const ads = (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle ?? [];
-		ads.push({});
-		(window as Window & { adsbygoogle?: unknown[] }).adsbygoogle = ads;
-	});
+	const canonicalUrl = $derived(`https://asldepartmentdictionary.org${page.url.pathname}`);
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<link rel="canonical" href={canonicalUrl} />
 </svelte:head>
 
 <header class="text-white py-3 app-header">
@@ -27,14 +23,14 @@
 {@render children()}
 
 <footer class="text-center py-3 mt-4 border-top">
-	<ins class="adsbygoogle"
-		style="display:block"
-		data-ad-client="ca-pub-6454601651628271"
-		data-ad-slot="auto"
-		data-ad-format="auto"
-		data-full-width-responsive="true">
-	</ins>
-	<a class="privacy-link d-block mt-2" href="/privacy">Privacy Policy</a>
+	<nav class="d-flex flex-wrap justify-content-center gap-3" aria-label="Site information">
+		<a href="/about">About</a>
+		<a href="/contact">Contact</a>
+		<a href="/how-name-signs-work">How Name Signs Work</a>
+		<a href="/fingerspelling-basics">Fingerspelling Basics</a>
+		<a href="/privacy">Privacy</a>
+		<a href="/terms">Terms</a>
+	</nav>
 </footer>
 
 <style>

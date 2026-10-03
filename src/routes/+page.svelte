@@ -4,6 +4,8 @@
   import { fade, fly, slide } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { sources, type Source } from "$lib";
+  import CategoryPill from "$lib/components/CategoryPill.svelte";
+  import SourcePill from "$lib/components/SourcePill.svelte";
 
   type WordCard = {
     id: string;
@@ -43,6 +45,14 @@
     "True Way ASL": "TWA",
     MISCELLANEOUS: "MISCELLANEOUS",
   };
+
+  function pillSource(source: Source): "SN" | "TWA" | "MISCELLANEOUS" {
+    return source === "naturally" ? "SN" : source === "trueway" ? "TWA" : "MISCELLANEOUS";
+  }
+
+  function hasValue(value: string) {
+    return Boolean(value && value !== "N/A");
+  }
 
   const parameterDefinitions: Record<ParameterKey, string> = {
     handshape: "The specific configuration of the fingers and hand.",
@@ -202,18 +212,26 @@
   <div class="row">
     <aside
       class="col-12 col-md-4 col-lg-3 p-3 sidebar-panel"
-      style="background-color: rgb(210, 210, 210);"
     >
       <div class="d-flex flex-column gap-3">
         {#each sources as source (source.id)}
           <button
-            class="btn text-start nav-button {selectedSource === source.id
-              ? 'btn-primary'
-              : 'btn-outline-primary'}"
+            class="source-btn"
+            data-source={source.id === "naturally" ? "SN" : source.id === "trueway" ? "TWA" : "MISCELLANEOUS"}
+            aria-pressed={selectedSource === source.id}
             onclick={() => selectSource(source.id)}
             transition:fade={{ duration: 250 }}
             animate:flip={{ duration: 400 }}
           >
+            <svg class="source-btn-glyph" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+              {#if source.id === "naturally"}
+                <circle cx="5" cy="5" r="4.5" fill="currentColor" />
+              {:else if source.id === "trueway"}
+                <path d="M5 .5 9.5 5 5 9.5.5 5z" fill="currentColor" />
+              {:else}
+                <path d="M5 .8 9.4 9.2H.6z" fill="currentColor" />
+              {/if}
+            </svg>
             {source.label}
           </button>
         {/each}
@@ -308,47 +326,49 @@
               </div>
               <div class="col-12 col-lg-6 d-flex flex-column gap-2">
                 <h3 class="h5 m-0">{selectedCard.word}</h3>
-                <div class="small">{selectedCard.gloss}</div>
-                <div class="small text-muted">{selectedCard.sourceLabel}</div>
-                <div class="small text-muted">{selectedCard.unitName}</div>
+                {#if hasValue(selectedCard.gloss)}<div class="small">{selectedCard.gloss}</div>{/if}
+                <div><SourcePill source={pillSource(selectedCard.sourceId)} /></div>
+                {#if hasValue(selectedCard.unitName)}
+                  <div><CategoryPill category={selectedCard.unitName} /></div>
+                {/if}
                 <hr class="my-2" />
-                <div class="small">
+                {#if hasValue(selectedCard.parameters.handshape)}<div class="small">
                   <strong
                     class="parameter-label"
                     title={parameterDefinitions.handshape}>Handshape:</strong
                   >
                   {selectedCard.parameters.handshape}
-                </div>
-                <div class="small">
+                </div>{/if}
+                {#if hasValue(selectedCard.parameters.location)}<div class="small">
                   <strong
                     class="parameter-label"
                     title={parameterDefinitions.location}>Location:</strong
                   >
                   {selectedCard.parameters.location}
-                </div>
-                <div class="small">
+                </div>{/if}
+                {#if hasValue(selectedCard.parameters.movement)}<div class="small">
                   <strong
                     class="parameter-label"
                     title={parameterDefinitions.movement}>Movement:</strong
                   >
                   {selectedCard.parameters.movement}
-                </div>
-                <div class="small">
+                </div>{/if}
+                {#if hasValue(selectedCard.parameters.palmOrientation)}<div class="small">
                   <strong
                     class="parameter-label"
                     title={parameterDefinitions.palmOrientation}
                     >Palm Orientation:</strong
                   >
                   {selectedCard.parameters.palmOrientation}
-                </div>
-                <div class="small">
+                </div>{/if}
+                {#if hasValue(selectedCard.parameters.nonManualSignals)}<div class="small">
                   <strong
                     class="parameter-label"
                     title={parameterDefinitions.nonManualSignals}
                     >Non-Manual Signals:</strong
                   >
                   {selectedCard.parameters.nonManualSignals}
-                </div>
+                </div>{/if}
               </div>
             </div>
           </div>
@@ -387,12 +407,13 @@
                       </div>
                     {/if}
                     <div class="word-button fw-semibold">{card.word}</div>
-                    <div class="small">{card.gloss}</div>
-                    <div class="source-badge source-{card.sourceId}">
-                      {card.sourceLabel}
-                    </div>
-                    <div class="small text-muted">{card.unitName}</div>
+                    {#if hasValue(card.gloss)}<div class="small">{card.gloss}</div>{/if}
+                    <div><SourcePill source={pillSource(card.sourceId)} /></div>
+                    {#if hasValue(card.unitName)}
+                      <div><CategoryPill category={card.unitName} /></div>
+                    {/if}
                   </button>
+                  <a class="sign-card-link" href={`/sign/${card.id}`}>View full sign entry</a>
                 </div>
               {/each}
             </div>
@@ -445,34 +466,8 @@
       clamp(0.6rem, 0.5rem + 0.35vw, 0.9rem);
   }
 
-  .source-badge {
-    align-self: flex-start;
-    border: 1px solid currentColor;
-    border-radius: 0;
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1.2;
-    padding: 0.22rem 0.55rem;
-    color: #fff;
-  }
-
-  .source-naturally {
-    background-color: #18794e;
-    border-color: #18794e;
-  }
-
-  .source-trueway {
-    background-color: #1769aa;
-    border-color: #1769aa;
-  }
-
-  .source-miscellaneous {
-    background-color: #9a6700;
-    border-color: #9a6700;
-  }
-
   .gif-card {
-    background-color: var(--bs-body-bg);
+    background-color: var(--ocean-surface);
   }
 
   .card-button {
