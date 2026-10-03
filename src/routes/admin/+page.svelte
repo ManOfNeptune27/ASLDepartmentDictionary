@@ -1,4 +1,7 @@
 <script lang="ts">
+  import CategoryPill from "$lib/components/CategoryPill.svelte";
+  import SourcePill from "$lib/components/SourcePill.svelte";
+
   let { form, data }: { form: any; data: any } = $props();
   const ADD_NEW_UNIT_VALUE = "__add_new_unit__";
 
@@ -10,11 +13,10 @@
 
   const PAIR_SEP = "|||";
 
-  function sourceBadgeClass(book: string) {
-    if (book === "Signing Naturally") return "admin-source-naturally";
-    if (book === "True Way ASL") return "admin-source-trueway";
-    if (book === "MISCELLANEOUS") return "admin-source-miscellaneous";
-    return "admin-source-other";
+  function pillSource(book: string): "SN" | "TWA" | "MISCELLANEOUS" {
+    if (book === "Signing Naturally") return "SN";
+    if (book === "True Way ASL") return "TWA";
+    return "MISCELLANEOUS";
   }
 
   let selectedBooks = $state<string[]>([]);
@@ -22,6 +24,7 @@
   let newUnitByBook = $state<Record<string, string>>({});
   let deleteSearch = $state("");
   let signFilter = $state("all");
+  let signUnitFilter = $state("all");
   let signPage = $state(1);
   const signsPerPage = 30;
   let uploading = $state(false);
@@ -96,8 +99,19 @@
         (signFilter === "duplicates"
           ? isDuplicate
           : sign.books?.some((book: any) => book.book === signFilter));
-      return matchesSearch && matchesFilter;
+      const matchesUnit =
+        signUnitFilter === "all" ||
+        sign.books?.some((book: any) =>
+          book.book === signFilter && book.unit === signUnitFilter,
+        );
+      return matchesSearch && matchesFilter && matchesUnit;
     }),
+  );
+
+  const signUnitOptions = $derived(
+    signFilter !== "all" && signFilter !== "duplicates"
+      ? (data?.unitsByBook?.[signFilter] ?? [])
+      : [],
   );
 
   const totalSignPages = $derived(
@@ -114,7 +128,12 @@
   $effect(() => {
     deleteSearch;
     signFilter;
+    signUnitFilter;
     signPage = 1;
+  });
+
+  $effect(() => {
+    if (signFilter === "all" || signFilter === "duplicates") signUnitFilter = "all";
   });
 
   $effect(() => {
@@ -366,7 +385,7 @@
           <div class="small mt-2">
             Saved: {form.submission.word} — {form.submission.gloss} ({form.submission.gifFileName})<br />
             {#each form.submission.bookUnitPairs as pair}
-              <span class="badge bg-secondary me-1">{pair.book} → {pair.unit}</span>
+              <span class="me-1"><SourcePill source={pillSource(pair.book)} /> <CategoryPill category={pair.unit} /></span>
             {/each}
           </div>
         </div>
@@ -506,7 +525,7 @@
 
         <div>
           <label class="form-label" for="gloss">Gloss</label>
-          <input id="gloss" name="gloss" class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}" value={form?.values?.gloss ?? "N/A"} required />
+          <input id="gloss" name="gloss" class="form-control {form?.errors?.gloss ? 'is-invalid' : ''}" value={form?.values?.gloss ?? ""} />
           {#if form?.errors?.gloss}<div class="invalid-feedback d-block">{form.errors.gloss}</div>{/if}
         </div>
 
@@ -561,12 +580,12 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="handshape">Handshape</label>
-            <input id="handshape" name="handshape" class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}" value={form?.values?.handshape ?? "N/A"} required />
+            <input id="handshape" name="handshape" class="form-control {form?.errors?.handshape ? 'is-invalid' : ''}" value={form?.values?.handshape ?? ""} />
             {#if form?.errors?.handshape}<div class="invalid-feedback d-block">{form.errors.handshape}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="location">Location</label>
-            <input id="location" name="location" class="form-control {form?.errors?.location ? 'is-invalid' : ''}" value={form?.values?.location ?? "N/A"} required />
+            <input id="location" name="location" class="form-control {form?.errors?.location ? 'is-invalid' : ''}" value={form?.values?.location ?? ""} />
             {#if form?.errors?.location}<div class="invalid-feedback d-block">{form.errors.location}</div>{/if}
           </div>
         </div>
@@ -574,19 +593,19 @@
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="movement">Movement</label>
-            <input id="movement" name="movement" class="form-control {form?.errors?.movement ? 'is-invalid' : ''}" value={form?.values?.movement ?? "N/A"} required />
+            <input id="movement" name="movement" class="form-control {form?.errors?.movement ? 'is-invalid' : ''}" value={form?.values?.movement ?? ""} />
             {#if form?.errors?.movement}<div class="invalid-feedback d-block">{form.errors.movement}</div>{/if}
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="palmOrientation">Palm Orientation</label>
-            <input id="palmOrientation" name="palmOrientation" class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}" value={form?.values?.palmOrientation ?? "N/A"} required />
+            <input id="palmOrientation" name="palmOrientation" class="form-control {form?.errors?.palmOrientation ? 'is-invalid' : ''}" value={form?.values?.palmOrientation ?? ""} />
             {#if form?.errors?.palmOrientation}<div class="invalid-feedback d-block">{form.errors.palmOrientation}</div>{/if}
           </div>
         </div>
 
         <div>
           <label class="form-label" for="nonManualSignals">Non-Manual Signals</label>
-          <input id="nonManualSignals" name="nonManualSignals" class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}" value={form?.values?.nonManualSignals ?? "N/A"} required />
+          <input id="nonManualSignals" name="nonManualSignals" class="form-control {form?.errors?.nonManualSignals ? 'is-invalid' : ''}" value={form?.values?.nonManualSignals ?? ""} />
           {#if form?.errors?.nonManualSignals}<div class="invalid-feedback d-block">{form.errors.nonManualSignals}</div>{/if}
         </div>
 
@@ -613,16 +632,29 @@
       <h3 class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
 
       <div class="row g-2 mb-3">
-        <div class="col-12 col-md-8">
+        <div class="col-12 col-md-6">
           <input type="search" class="form-control" placeholder="Search signs to edit or delete..." bind:value={deleteSearch} aria-label="Search signs" />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <select class="form-select" bind:value={signFilter} aria-label="Filter existing signs">
             <option value="all">All signs</option>
             <option value="duplicates">Duplicate Signs</option>
             <option value="Signing Naturally">SN</option>
             <option value="True Way ASL">TWA</option>
             <option value="MISCELLANEOUS">MISC</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <select
+            class="form-select"
+            bind:value={signUnitFilter}
+            aria-label="Filter existing signs by unit"
+            disabled={signUnitOptions.length === 0}
+          >
+            <option value="all">All units</option>
+            {#each signUnitOptions as unit}
+              <option value={unit}>{unit}</option>
+            {/each}
           </select>
         </div>
       </div>
@@ -666,7 +698,7 @@
                 <div class="small text-muted">{sign.gloss}</div>
                 <div class="small text-muted">
                   {#each sign.books as b}
-                    <span class="badge admin-source-badge {sourceBadgeClass(b.book)} me-1">{b.book} → {b.unit}</span>
+                    <span class="me-1"><SourcePill source={pillSource(b.book)} /> {#if b.unit === "N/A"}<span class="text-muted">N/A</span>{:else}<CategoryPill category={b.unit} />{/if}</span>
                   {/each}
                 </div>
                 <div class="mt-auto d-flex flex-column gap-2">
@@ -764,6 +796,19 @@
                     </form>
                   {/if}
 
+                  <form method="POST" action="?/duplicateSign">
+                    <input type="hidden" name="id" value={sign.id} />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-secondary w-100"
+                      onclick={(e) => {
+                        if (!confirm(`Duplicate ${sign.word} using the same GIF?`)) e.preventDefault();
+                      }}
+                    >
+                      Duplicate
+                    </button>
+                  </form>
+
                   <form method="POST" action="?/delete">
                     <input type="hidden" name="id" value={sign.id} />
                     <input type="hidden" name="gifUrl" value={sign.gifUrl} />
@@ -822,29 +867,4 @@
     border: 1px dashed var(--bs-border-color);
   }
 
-  .admin-source-badge {
-    border: 1px solid transparent;
-    border-radius: 0;
-    color: #fff;
-  }
-
-  .admin-source-naturally {
-    background-color: #18794e;
-    border-color: #18794e;
-  }
-
-  .admin-source-trueway {
-    background-color: #1769aa;
-    border-color: #1769aa;
-  }
-
-  .admin-source-miscellaneous {
-    background-color: #9a6700;
-    border-color: #9a6700;
-  }
-
-  .admin-source-other {
-    background-color: #6c757d;
-    border-color: #6c757d;
-  }
 </style>

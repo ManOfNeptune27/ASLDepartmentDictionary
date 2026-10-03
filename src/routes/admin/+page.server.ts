@@ -12,6 +12,21 @@ function toText(value: FormDataEntryValue | null) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function toNullableText(value: FormDataEntryValue | null) {
+  const text = toText(value);
+  return !text || text.toUpperCase() === 'N/A' ? null : text;
+}
+
+function displayMetadata(value: unknown) {
+  const text = String(value ?? '').trim();
+  return !text || text.toUpperCase() === 'NULL' ? 'N/A' : text;
+}
+
+function nullableDatabaseValue(value: unknown) {
+  const text = String(value ?? '').trim();
+  return !text || text.toUpperCase() === 'N/A' || text.toUpperCase() === 'NULL' ? null : text;
+}
+
 function normalizeWord(value: string) {
   return value.trim().toLowerCase();
 }
@@ -33,7 +48,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
   await initDb();
 
   const signsResult = await db.execute(`
-    SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at,
+    SELECT s.id, s.word, s.gloss, s.gif_url, s.gif_size, s.submitted_at,
            s.handshape, s.location, s.movement, s.palm_orientation, s.non_manual_signals
     FROM signs s
     ORDER BY LOWER(s.word) ASC, s.id ASC
@@ -43,6 +58,16 @@ export const load: PageServerLoad = async ({ cookies }) => {
     SELECT sb.sign_id, sb.book, sb.unit
     FROM sign_books sb
     ORDER BY sb.book ASC, LOWER(sb.unit) ASC, sb.unit ASC
+  `);
+
+  const sentencesResult = await db.execute(`
+    SELECT s.id, s.text, s.gif_url, s.submitted_at,
+           GROUP_CONCAT(g.word, ' ') AS linked_words
+    FROM sentences s
+    LEFT JOIN sentence_signs ss ON ss.sentence_id = s.id
+    LEFT JOIN signs g ON g.id = ss.sign_id
+    GROUP BY s.id
+    ORDER BY s.id DESC
   `);
 
   const unitsByBook = booksResult.rows.reduce((acc: Record<string, string[]>, row) => {
@@ -60,17 +85,26 @@ export const load: PageServerLoad = async ({ cookies }) => {
     return {
       id: Number(row.id),
       word: String(row.word),
-      gloss: String(row.gloss),
+      gloss: displayMetadata(row.gloss),
       gifUrl: String(row.gif_url),
+      gifSize: Number(row.gif_size ?? 0),
       submittedAt: String(row.submitted_at),
-      handshape: String(row.handshape),
-      location: String(row.location),
-      movement: String(row.movement),
-      palmOrientation: String(row.palm_orientation),
-      nonManualSignals: String(row.non_manual_signals),
+      handshape: displayMetadata(row.handshape),
+      location: displayMetadata(row.location),
+      movement: displayMetadata(row.movement),
+      palmOrientation: displayMetadata(row.palm_orientation),
+      nonManualSignals: displayMetadata(row.non_manual_signals),
       books
     };
   });
+
+  const sentences = sentencesResult.rows.map((row) => ({
+    id: Number(row.id),
+    text: String(row.text),
+    gifUrl: String(row.gif_url),
+    submittedAt: String(row.submitted_at),
+    linkedWords: String(row.linked_words ?? ''),
+  }));
 
   const teachersResult = await db.execute(`SELECT id, username, created_at FROM teachers ORDER BY created_at ASC`);
   const teachers = teachersResult.rows.map((row) => ({
@@ -85,7 +119,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
   const isAdmin = isLoggedInUserAdmin(cookies);
 
-  return { signs, unitsByBook, teachers, isAdmin, storageGB };
+  return { signs, sentences, unitsByBook, teachers, isAdmin, storageGB };
 };
 
 export const actions: Actions = {
@@ -96,12 +130,12 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const files = formData.getAll('gifs').filter((value): value is File => value instanceof File);
-    const gloss = 'N/A';
-    const handshape = 'N/A';
-    const location = 'N/A';
-    const movement = 'N/A';
-    const palmOrientation = 'N/A';
-    const nonManualSignals = 'N/A';
+    const gloss = null;
+    const handshape = null;
+    const location = null;
+    const movement = null;
+    const palmOrientation = null;
+    const nonManualSignals = null;
     const book = 'MISCELLANEOUS';
     const unit = 'Uncategorized';
 
@@ -168,7 +202,7 @@ export const actions: Actions = {
     const formData = await request.formData();
 
     const word = toText(formData.get('word'));
-    const gloss = toText(formData.get('gloss'));
+    const gloss = toNullableText(formData.get('gloss'));
     const books = formData.getAll('books').map((value) => toText(value)).filter(Boolean);
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
@@ -183,11 +217,11 @@ export const actions: Actions = {
     });
 
     const allowDuplicate = toText(formData.get('allowDuplicate')) === 'true';
-    const handshape = toText(formData.get('handshape'));
-    const location = toText(formData.get('location'));
-    const movement = toText(formData.get('movement'));
-    const palmOrientation = toText(formData.get('palmOrientation'));
-    const nonManualSignals = toText(formData.get('nonManualSignals'));
+    const handshape = toNullableText(formData.get('handshape'));
+    const location = toNullableText(formData.get('location'));
+    const movement = toNullableText(formData.get('movement'));
+    const palmOrientation = toNullableText(formData.get('palmOrientation'));
+    const nonManualSignals = toNullableText(formData.get('nonManualSignals'));
 
     // Now accepts URL and size instead of file
     const gifUrl = toText(formData.get('gifUrl'));
@@ -196,7 +230,6 @@ export const actions: Actions = {
     const errors: Record<string, string> = {};
 
     if (!word) errors.word = 'Name of Sign is required.';
-    if (!gloss) errors.gloss = 'Gloss is required.';
     if (books.length === 0) {
       books.push('MISCELLANEOUS');
       bookUnitPairs.push({ book: 'MISCELLANEOUS', unit: 'Uncategorized' });
@@ -210,11 +243,6 @@ export const actions: Actions = {
       errors.bookUnitPairs = `Please select a unit for: ${missingUnits.join(', ')}.`;
     }
 
-    if (!handshape) errors.handshape = 'Handshape is required.';
-    if (!location) errors.location = 'Location is required.';
-    if (!movement) errors.movement = 'Movement is required.';
-    if (!palmOrientation) errors.palmOrientation = 'Palm orientation is required.';
-    if (!nonManualSignals) errors.nonManualSignals = 'Non-manual signals are required.';
     if (!gifUrl) errors.gif = 'GIF upload failed or was not provided.';
 
     if (Object.keys(errors).length > 0) {
@@ -300,9 +328,117 @@ export const actions: Actions = {
     await db.execute({ sql: `DELETE FROM sign_books WHERE sign_id = ?`, args: [Number(id)] });
     await db.execute({ sql: `DELETE FROM signs WHERE id = ?`, args: [Number(id)] });
 
-    if (gifUrl) await deleteGif(gifUrl);
+    if (gifUrl) {
+      const remainingGif = await db.execute({
+        sql: `SELECT id FROM signs WHERE gif_url = ? LIMIT 1`,
+        args: [gifUrl]
+      });
+      if (remainingGif.rows.length === 0) await deleteGif(gifUrl);
+    }
 
     return { success: true, message: 'Sign deleted successfully.' };
+  },
+
+  duplicateSign: async ({ request, cookies }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
+
+    const formData = await request.formData();
+    const id = toText(formData.get('id'));
+    if (!id) return fail(400, { success: false, errors: { general: 'Missing sign ID.' } });
+
+    await initDb();
+    const sourceResult = await db.execute({
+      sql: `SELECT word, gloss, handshape, location, movement, palm_orientation,
+                   non_manual_signals, gif_url, gif_size
+            FROM signs WHERE id = ?`,
+      args: [Number(id)]
+    });
+    const source = sourceResult.rows[0];
+    if (!source) return fail(404, { success: false, errors: { general: 'Sign not found.' } });
+
+    const result = await db.execute({
+      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation,
+                              non_manual_signals, gif_url, gif_size, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        String(source.word), nullableDatabaseValue(source.gloss), nullableDatabaseValue(source.handshape), nullableDatabaseValue(source.location),
+        nullableDatabaseValue(source.movement), nullableDatabaseValue(source.palm_orientation), nullableDatabaseValue(source.non_manual_signals),
+        String(source.gif_url), Number(source.gif_size ?? 0), new Date().toISOString()
+      ]
+    });
+    const duplicateId = Number(result.lastInsertRowid);
+
+    const booksResult = await db.execute({
+      sql: `SELECT book, unit FROM sign_books WHERE sign_id = ?`,
+      args: [Number(id)]
+    });
+    for (const book of booksResult.rows) {
+      await db.execute({
+        sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
+        args: [duplicateId, String(book.book), String(book.unit)]
+      });
+    }
+
+    return { success: true, message: `${String(source.word)} duplicated. Edit the new copy below.` };
+  },
+
+  uploadSentence: async ({ request, cookies }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
+
+    const formData = await request.formData();
+    const text = toText(formData.get('text'));
+    const gifUrl = toText(formData.get('gifUrl'));
+    const gifSize = Number(formData.get('gifSize') ?? 0);
+    const errors: Record<string, string> = {};
+    if (!text) errors.text = 'Sentence text is required.';
+    if (!gifUrl) errors.gif = 'GIF upload failed or was not provided.';
+
+    const words = text.split(/\s+/).map((word) => word.replace(/[.,!?;:]+$/g, '').trim()).filter(Boolean);
+    await initDb();
+    const linkedSignIds: number[] = [];
+    const missingWords: string[] = [];
+    const ambiguousWords: string[] = [];
+
+    for (const word of words) {
+      const matches = await db.execute({
+        sql: `SELECT id FROM signs WHERE LOWER(TRIM(word)) = LOWER(TRIM(?)) ORDER BY id ASC`,
+        args: [word]
+      });
+      if (matches.rows.length === 0) missingWords.push(word);
+      else if (matches.rows.length > 1) ambiguousWords.push(word);
+      else linkedSignIds.push(Number(matches.rows[0].id));
+    }
+
+    if (missingWords.length > 0) errors.text = `No sign found for: ${missingWords.join(', ')}.`;
+    if (ambiguousWords.length > 0) {
+      errors.text = `More than one sign matches: ${ambiguousWords.join(', ')}. Rename the sentence word or resolve the duplicate first.`;
+    }
+    if (Object.keys(errors).length > 0) {
+      return fail(400, { success: false, errors, values: { text } } as any);
+    }
+
+    const result = await db.execute({
+      sql: `INSERT INTO sentences (text, gif_url, gif_size, submitted_at) VALUES (?, ?, ?, ?)`,
+      args: [text, gifUrl, gifSize, new Date().toISOString()]
+    });
+    const sentenceId = Number(result.lastInsertRowid);
+    if (!sentenceId) {
+      await deleteGif(gifUrl).catch(() => undefined);
+      return fail(500, { success: false, errors: { general: 'Failed to save sentence.' } } as any);
+    }
+
+    for (const [position, signId] of linkedSignIds.entries()) {
+      await db.execute({
+        sql: `INSERT INTO sentence_signs (sentence_id, sign_id, position) VALUES (?, ?, ?)`,
+        args: [sentenceId, signId, position]
+      });
+    }
+
+    return { success: true, message: `Sentence saved and linked to ${linkedSignIds.length} signs.` };
   },
 
   addTeacher: async ({ request, cookies }) => {
@@ -356,12 +492,12 @@ export const actions: Actions = {
     const formData = await request.formData();
     const id = toText(formData.get('id'));
     const word = toText(formData.get('word'));
-    const gloss = toText(formData.get('gloss'));
-    const handshape = toText(formData.get('handshape'));
-    const location = toText(formData.get('location'));
-    const movement = toText(formData.get('movement'));
-    const palmOrientation = toText(formData.get('palmOrientation'));
-    const nonManualSignals = toText(formData.get('nonManualSignals'));
+    const gloss = toNullableText(formData.get('gloss'));
+    const handshape = toNullableText(formData.get('handshape'));
+    const location = toNullableText(formData.get('location'));
+    const movement = toNullableText(formData.get('movement'));
+    const palmOrientation = toNullableText(formData.get('palmOrientation'));
+    const nonManualSignals = toNullableText(formData.get('nonManualSignals'));
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
     const PAIR_SEP = '|||';

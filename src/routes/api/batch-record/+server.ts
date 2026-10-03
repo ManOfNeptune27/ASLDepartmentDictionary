@@ -28,7 +28,7 @@ export const POST = async ({ request, cookies }: RequestEvent) => {
     const result = await db.execute({
       sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation, non_manual_signals, gif_url, gif_size, submitted_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [word, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', gifUrl, gifSize, new Date().toISOString()]
+      args: [word, null, null, null, null, null, null, gifUrl, gifSize, new Date().toISOString()]
     });
 
     if (!result.lastInsertRowid) {
