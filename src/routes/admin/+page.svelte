@@ -22,6 +22,7 @@
   let newUnitByBook = $state<Record<string, string>>({});
   let deleteSearch = $state("");
   let signFilter = $state("all");
+  let signUnitFilter = $state("all");
   let signPage = $state(1);
   const signsPerPage = 30;
   let uploading = $state(false);
@@ -96,8 +97,19 @@
         (signFilter === "duplicates"
           ? isDuplicate
           : sign.books?.some((book: any) => book.book === signFilter));
-      return matchesSearch && matchesFilter;
+      const matchesUnit =
+        signUnitFilter === "all" ||
+        sign.books?.some((book: any) =>
+          book.book === signFilter && book.unit === signUnitFilter,
+        );
+      return matchesSearch && matchesFilter && matchesUnit;
     }),
+  );
+
+  const signUnitOptions = $derived(
+    signFilter !== "all" && signFilter !== "duplicates"
+      ? (data?.unitsByBook?.[signFilter] ?? [])
+      : [],
   );
 
   const totalSignPages = $derived(
@@ -114,7 +126,12 @@
   $effect(() => {
     deleteSearch;
     signFilter;
+    signUnitFilter;
     signPage = 1;
+  });
+
+  $effect(() => {
+    if (signFilter === "all" || signFilter === "duplicates") signUnitFilter = "all";
   });
 
   $effect(() => {
@@ -613,16 +630,29 @@
       <h3 class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
 
       <div class="row g-2 mb-3">
-        <div class="col-12 col-md-8">
+        <div class="col-12 col-md-6">
           <input type="search" class="form-control" placeholder="Search signs to edit or delete..." bind:value={deleteSearch} aria-label="Search signs" />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <select class="form-select" bind:value={signFilter} aria-label="Filter existing signs">
             <option value="all">All signs</option>
             <option value="duplicates">Duplicate Signs</option>
             <option value="Signing Naturally">SN</option>
             <option value="True Way ASL">TWA</option>
             <option value="MISCELLANEOUS">MISC</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <select
+            class="form-select"
+            bind:value={signUnitFilter}
+            aria-label="Filter existing signs by unit"
+            disabled={signUnitOptions.length === 0}
+          >
+            <option value="all">All units</option>
+            {#each signUnitOptions as unit}
+              <option value={unit}>{unit}</option>
+            {/each}
           </select>
         </div>
       </div>
