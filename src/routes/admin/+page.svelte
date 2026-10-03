@@ -764,6 +764,19 @@
                     </form>
                   {/if}
 
+                  <form method="POST" action="?/duplicateSign">
+                    <input type="hidden" name="id" value={sign.id} />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-secondary w-100"
+                      onclick={(e) => {
+                        if (!confirm(`Duplicate ${sign.word} using the same GIF?`)) e.preventDefault();
+                      }}
+                    >
+                      Duplicate
+                    </button>
+                  </form>
+
                   <form method="POST" action="?/delete">
                     <input type="hidden" name="id" value={sign.id} />
                     <input type="hidden" name="gifUrl" value={sign.gifUrl} />

@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
   await initDb();
 
   const signsResult = await db.execute(`
-    SELECT s.id, s.word, s.gloss, s.gif_url, s.submitted_at,
+    SELECT s.id, s.word, s.gloss, s.gif_url, s.gif_size, s.submitted_at,
            s.handshape, s.location, s.movement, s.palm_orientation, s.non_manual_signals
     FROM signs s
     ORDER BY LOWER(s.word) ASC, s.id ASC
@@ -62,6 +62,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
       word: String(row.word),
       gloss: String(row.gloss),
       gifUrl: String(row.gif_url),
+      gifSize: Number(row.gif_size ?? 0),
       submittedAt: String(row.submitted_at),
       handshape: String(row.handshape),
       location: String(row.location),
@@ -300,9 +301,60 @@ export const actions: Actions = {
     await db.execute({ sql: `DELETE FROM sign_books WHERE sign_id = ?`, args: [Number(id)] });
     await db.execute({ sql: `DELETE FROM signs WHERE id = ?`, args: [Number(id)] });
 
-    if (gifUrl) await deleteGif(gifUrl);
+    if (gifUrl) {
+      const remainingGif = await db.execute({
+        sql: `SELECT id FROM signs WHERE gif_url = ? LIMIT 1`,
+        args: [gifUrl]
+      });
+      if (remainingGif.rows.length === 0) await deleteGif(gifUrl);
+    }
 
     return { success: true, message: 'Sign deleted successfully.' };
+  },
+
+  duplicateSign: async ({ request, cookies }) => {
+    if (!isTeacherAuthenticated(cookies)) {
+      return fail(401, { success: false, errors: { general: 'You must be logged in.' } } as any);
+    }
+
+    const formData = await request.formData();
+    const id = toText(formData.get('id'));
+    if (!id) return fail(400, { success: false, errors: { general: 'Missing sign ID.' } });
+
+    await initDb();
+    const sourceResult = await db.execute({
+      sql: `SELECT word, gloss, handshape, location, movement, palm_orientation,
+                   non_manual_signals, gif_url, gif_size
+            FROM signs WHERE id = ?`,
+      args: [Number(id)]
+    });
+    const source = sourceResult.rows[0];
+    if (!source) return fail(404, { success: false, errors: { general: 'Sign not found.' } });
+
+    const result = await db.execute({
+      sql: `INSERT INTO signs (word, gloss, handshape, location, movement, palm_orientation,
+                              non_manual_signals, gif_url, gif_size, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        String(source.word), String(source.gloss), String(source.handshape), String(source.location),
+        String(source.movement), String(source.palm_orientation), String(source.non_manual_signals),
+        String(source.gif_url), Number(source.gif_size ?? 0), new Date().toISOString()
+      ]
+    });
+    const duplicateId = Number(result.lastInsertRowid);
+
+    const booksResult = await db.execute({
+      sql: `SELECT book, unit FROM sign_books WHERE sign_id = ?`,
+      args: [Number(id)]
+    });
+    for (const book of booksResult.rows) {
+      await db.execute({
+        sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
+        args: [duplicateId, String(book.book), String(book.unit)]
+      });
+    }
+
+    return { success: true, message: `${String(source.word)} duplicated. Edit the new copy below.` };
   },
 
   addTeacher: async ({ request, cookies }) => {
