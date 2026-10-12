@@ -17,6 +17,10 @@ function toNullableText(value: FormDataEntryValue | null) {
   return !text || text.toUpperCase() === 'N/A' ? null : text;
 }
 
+function toDatabaseMetadata(value: FormDataEntryValue | null) {
+  return toText(value) || 'N/A';
+}
+
 function displayMetadata(value: unknown) {
   const text = String(value ?? '').trim();
   return !text || text.toUpperCase() === 'NULL' ? 'N/A' : text;
@@ -492,12 +496,13 @@ export const actions: Actions = {
     const formData = await request.formData();
     const id = toText(formData.get('id'));
     const word = toText(formData.get('word'));
-    const gloss = toNullableText(formData.get('gloss'));
-    const handshape = toNullableText(formData.get('handshape'));
-    const location = toNullableText(formData.get('location'));
-    const movement = toNullableText(formData.get('movement'));
-    const palmOrientation = toNullableText(formData.get('palmOrientation'));
-    const nonManualSignals = toNullableText(formData.get('nonManualSignals'));
+    const gloss = toDatabaseMetadata(formData.get('gloss'));
+    // Older deployed databases still require metadata columns to contain a value.
+    const handshape = toDatabaseMetadata(formData.get('handshape'));
+    const location = toDatabaseMetadata(formData.get('location'));
+    const movement = toDatabaseMetadata(formData.get('movement'));
+    const palmOrientation = toDatabaseMetadata(formData.get('palmOrientation'));
+    const nonManualSignals = toDatabaseMetadata(formData.get('nonManualSignals'));
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
     const PAIR_SEP = '|||';
@@ -510,26 +515,30 @@ export const actions: Actions = {
       return { book, unit };
     });
 
-    if (!id) return fail(400, { success: false, errors: { general: 'Missing sign ID.' } } as any);
+    const signId = Number(id);
+    if (!id || !Number.isInteger(signId) || signId < 1) {
+      return fail(400, { success: false, errors: { general: 'Missing or invalid sign ID.' } } as any);
+    }
 
+    await initDb();
     await db.execute({
       sql: `UPDATE signs SET word = ?, gloss = ?, handshape = ?, location = ?, movement = ?, palm_orientation = ?, non_manual_signals = ? WHERE id = ?`,
-      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, Number(id)]
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, signId]
     });
 
     // Update book/unit pairs
-    await db.execute({ sql: `DELETE FROM sign_books WHERE sign_id = ?`, args: [Number(id)] });
+    await db.execute({ sql: `DELETE FROM sign_books WHERE sign_id = ?`, args: [signId] });
 
     if (bookUnitPairs.length === 0) {
       await db.execute({
         sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
-        args: [Number(id), 'MISCELLANEOUS', 'Uncategorized']
+        args: [signId, 'MISCELLANEOUS', 'Uncategorized']
       });
     } else {
       for (const pair of bookUnitPairs) {
         await db.execute({
           sql: `INSERT INTO sign_books (sign_id, book, unit) VALUES (?, ?, ?)`,
-          args: [Number(id), pair.book, pair.unit]
+          args: [signId, pair.book, pair.unit]
         });
       }
     }

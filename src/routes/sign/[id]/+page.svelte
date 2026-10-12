@@ -72,12 +72,21 @@
     </div>
   </div>
 
-  {#if data.relatedSigns.length > 0}
+  {#if data.relatedGroups.length > 0}
     <section class="mt-5" aria-labelledby="related-signs-heading">
       <h2 id="related-signs-heading" class="h4">Related signs</h2>
-      <div class="d-flex flex-wrap gap-2">
-        {#each data.relatedSigns as related}
-          {#if related.word}<a class="btn btn-outline-secondary btn-sm" href={`/sign/${related.id}`}>{related.word}</a>{/if}
+      <div class="d-flex flex-column gap-3">
+        {#each data.relatedGroups as group}
+          <div>
+            <h3 class="h6 mb-2">{group.label}</h3>
+            <div class="d-flex flex-wrap gap-2">
+              {#each group.signs as related}
+                {#if related.word}
+                  <a class="btn btn-outline-secondary btn-sm" href={`/sign/${related.id}`}>{related.word}</a>
+                {/if}
+              {/each}
+            </div>
+          </div>
         {/each}
       </div>
     </section>
