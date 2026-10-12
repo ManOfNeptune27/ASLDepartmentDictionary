@@ -46,18 +46,65 @@ export const load: PageServerLoad = async ({ params }) => {
     category: publicValue(book.unit),
   }));
 
+  const parameterGroups = [
+    { key: 'handshape', column: 'handshape', label: 'Related by handshape' },
+    { key: 'location', column: 'location', label: 'Related by location' },
+    { key: 'movement', column: 'movement', label: 'Related by movement' },
+    { key: 'palmOrientation', column: 'palm_orientation', label: 'Related by palm orientation' },
+    { key: 'nonManualSignals', column: 'non_manual_signals', label: 'Related by non-manual signals' },
+  ] as const;
+
   const relatedCategory = books.find((book) => book.category)?.category;
-  const relatedResult = relatedCategory
-    ? await db.execute({
-        sql: `SELECT DISTINCT s.id, s.word
-              FROM signs s
-              JOIN sign_books sb ON sb.sign_id = s.id
-              WHERE s.id != ? AND sb.unit = ?
-              ORDER BY LOWER(s.word), s.id
-              LIMIT 6`,
-        args: [sign.id, relatedCategory],
-      })
-    : { rows: [] };
+  const relatedGroups = [];
+  if (relatedCategory) {
+    const relatedUnitResult = await db.execute({
+      sql: `SELECT DISTINCT s.id, s.word
+            FROM signs s
+            JOIN sign_books sb ON sb.sign_id = s.id
+            WHERE s.id != ? AND sb.unit = ?
+            ORDER BY LOWER(s.word), s.id
+            LIMIT 6`,
+      args: [sign.id, relatedCategory],
+    });
+
+    if (relatedUnitResult.rows.length > 0) {
+      relatedGroups.push({
+        label: 'Related signs in the same unit',
+        signs: relatedUnitResult.rows.map((related) => ({
+          id: Number(related.id),
+          word: publicValue(related.word),
+        })),
+      });
+    }
+  }
+
+  for (const parameter of parameterGroups) {
+    const value = sign[parameter.key];
+    if (!value) continue;
+
+    const relatedResult = await db.execute({
+      sql: `SELECT DISTINCT s.id, s.word
+            FROM signs s
+            WHERE s.id != ?
+              AND s.${parameter.column} IS NOT NULL
+              AND TRIM(s.${parameter.column}) != ''
+              AND UPPER(TRIM(s.${parameter.column})) != 'N/A'
+              AND LOWER(TRIM(s.${parameter.column})) = LOWER(TRIM(?))
+            ORDER BY LOWER(s.word), s.id
+            LIMIT 6`,
+      args: [sign.id, value],
+    });
+
+    if (relatedResult.rows.length > 0) {
+      relatedGroups.push({
+        label: parameter.label,
+        signs: relatedResult.rows.map((related) => ({
+          id: Number(related.id),
+          word: publicValue(related.word),
+        })),
+      });
+    }
+  }
 
   const contentText = [
     sign.word,
@@ -68,10 +115,7 @@ export const load: PageServerLoad = async ({ params }) => {
   return {
     sign,
     books,
-    relatedSigns: relatedResult.rows.map((related) => ({
-      id: Number(related.id),
-      word: publicValue(related.word),
-    })),
+    relatedGroups,
     filledFieldCount,
     isContentReady,
     contentText,

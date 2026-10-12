@@ -380,10 +380,10 @@
           <div class="cards-scroll">
             <div class="row g-3 cards-grid">
               {#each paginatedWordCards as card (card.id)}
-                <div class="col-12 col-sm-6 col-xl-4">
+                <div class="col-12 col-sm-6 col-xl-4 d-flex flex-column">
                   <button
                     type="button"
-                    class="border rounded p-3 h-100 d-flex flex-column gap-2 gif-card card-button {selectedCardId ===
+                    class="border rounded p-3 flex-grow-1 d-flex flex-column gap-2 gif-card card-button {selectedCardId ===
                     card.id
                       ? 'selected-card'
                       : ''}"
@@ -413,7 +413,9 @@
                       <div><CategoryPill category={card.unitName} /></div>
                     {/if}
                   </button>
-                  <a class="sign-card-link" href={`/sign/${card.id}`}>View full sign entry</a>
+                  <a class="btn btn-outline-secondary sign-card-link mt-2" href={`/sign/${card.id}`}>
+                    View full sign entry
+                  </a>
                 </div>
               {/each}
             </div>

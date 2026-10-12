@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { applyAction, enhance } from "$app/forms";
   import CategoryPill from "$lib/components/CategoryPill.svelte";
   import SourcePill from "$lib/components/SourcePill.svelte";
 
@@ -35,6 +36,7 @@
   let batchResults = $state<{ filename: string; success: boolean; error?: string }[]>([]);
   let signName = $state("");
   let editingSignId = $state<number | null>(null);
+  let editError = $state("");
   let showTeacherPassword = $state(false);
 
   // Edit form state
@@ -66,11 +68,28 @@
 
   function startEditing(sign: any) {
     editingSignId = sign.id;
+    editError = "";
     editSelectedBooks = sign.books.map((b: any) => b.book);
     editUnitSelectionByBook = Object.fromEntries(
       sign.books.map((b: any) => [b.book, b.unit])
     );
     editNewUnitByBook = {};
+  }
+
+  function enhanceEdit() {
+    return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
+      if (result.type === "success") {
+        editingSignId = null;
+        editError = "";
+        await update();
+      } else {
+        await applyAction(result);
+        editError =
+          result.type === "failure"
+            ? (result.data?.errors?.general ?? "The sign could not be updated.")
+            : "The sign could not be updated.";
+      }
+    };
   }
 
   function normalizeSignName(word: string) {
@@ -717,7 +736,8 @@
                   </button>
 
                   {#if editingSignId === sign.id}
-                    <form method="POST" action="?/editSign" class="d-flex flex-column gap-2 mt-1">
+                    <form method="POST" action="/admin?/editSign" use:enhance={enhanceEdit} class="d-flex flex-column gap-2 mt-1">
+                      {#if editError}<div class="alert alert-danger py-2 mb-0" role="alert">{editError}</div>{/if}
                       <input type="hidden" name="id" value={sign.id} />
                       <div>
                         <label class="form-label small mb-1" for={`edit-word-${sign.id}`}>Name of Sign</label>
