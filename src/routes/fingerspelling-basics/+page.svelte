@@ -33,7 +33,7 @@
     have different preferences for speed, space, and style.
   </p>
 
-  <a class="btn btn-primary mt-3" href="/?search=fingerspelling">
+  <a class="btn btn-primary mt-3" href="/dictionary?search=fingerspelling">
     Search Fingerspelling Signs
   </a>
 

@@ -36,7 +36,7 @@
 </svelte:head>
 
 <main class="container py-4 sign-page">
-  <a href="/" class="btn btn-outline-secondary btn-sm mb-4">Back to dictionary</a>
+  <a href="/dictionary" class="btn btn-outline-secondary btn-sm mb-4">Back to dictionary</a>
   <div class="row g-4">
     <div class="col-12 col-lg-6">
       {#if data.sign.gifUrl}
