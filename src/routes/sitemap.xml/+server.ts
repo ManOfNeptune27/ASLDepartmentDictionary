@@ -1,7 +1,6 @@
 import { db, initDb } from '$lib/db';
 import { SIGN_CONTENT_MIN_FILLED_FIELDS } from '$lib/signContent';
-
-const siteUrl = 'https://asldepartmentdictionary.org';
+import { SITE_URL } from '$lib/site';
 
 function escapeXml(value: string) {
   return value.replace(/[<>&'\"]/g, (character) => ({
@@ -31,8 +30,8 @@ export async function GET() {
 
   const paths = ['/', '/dictionary', '/about', '/contact', '/terms', '/privacy'];
   const urls = [
-    ...paths.map((path) => `${siteUrl}${path}`),
-    ...result.rows.map((row) => `${siteUrl}/sign/${Number(row.id)}`),
+    ...paths.map((path) => `${SITE_URL}${path}`),
+    ...result.rows.map((row) => `${SITE_URL}/sign/${Number(row.id)}`),
   ];
   const body = urls.map((url) => `  <url><loc>${escapeXml(url)}</loc></url>`).join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
