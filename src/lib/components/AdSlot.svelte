@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { isAdEligible } from '$lib/ads';
 
   let {
     contentText = '',
@@ -11,30 +13,20 @@
     adSlot?: string;
   } = $props();
 
-  const isEligible = $derived(contentText.trim().length >= minTextLength);
+  const isEligible = $derived(
+    isAdEligible(page.url.pathname) && contentText.trim().length >= minTextLength,
+  );
 
   onMount(() => {
     if (!isEligible) return;
 
-    const scriptSelector = 'script[src^="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]';
-    const existingScript = document.querySelector(scriptSelector);
     const pushAd = () => {
       const ads = (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle ?? [];
       ads.push({});
       (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle = ads;
     };
 
-    if (existingScript) {
-      pushAd();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6454601651628271';
-    script.crossOrigin = 'anonymous';
-    script.onload = pushAd;
-    document.head.appendChild(script);
+    pushAd();
   });
 </script>
 

@@ -1,15 +1,24 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.png';
 	import { page } from '$app/state';
+	import { isAdEligible } from '$lib/ads';
 	import '../app.css';
 
 	let { children } = $props();
 	const canonicalUrl = $derived(`https://asldepartmentdictionary.org${page.url.pathname}`);
+	const adsEligible = $derived(isAdEligible(page.url.pathname));
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<link rel="canonical" href={canonicalUrl} />
+	{#if adsEligible}
+		<script
+			async
+			src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6454601651628271"
+			crossorigin="anonymous"
+		></script>
+	{/if}
 </svelte:head>
 
 <div class="app-shell">
