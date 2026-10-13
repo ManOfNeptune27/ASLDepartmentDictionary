@@ -1,7 +1,3 @@
-<script lang="ts">
-	import AdSlot from '$lib/components/AdSlot.svelte';
-</script>
-
 <svelte:head>
 	<title>ASL Department Dictionary</title>
 	<meta
@@ -28,13 +24,6 @@
 		teacher who gave permission for it to be shared. It is meant to support your classes and
 		practice with Deaf signers, not replace them.
 	</p>
-
-	<div class="my-5">
-		<AdSlot
-			contentText="This website is a place to help new students learn American Sign Language."
-			minTextLength={1}
-		/>
-	</div>
 
 	<h2 class="h4 mt-5">How signs are organized</h2>
 

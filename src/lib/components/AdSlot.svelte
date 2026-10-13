@@ -1,45 +1,31 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
-  import { isAdEligible } from '$lib/ads';
 
   let {
-    contentText = '',
-    minTextLength = 1,
     adSlot = 'auto',
+    contentText: _contentText,
+    minTextLength: _minTextLength,
   }: {
+    adSlot?: string;
     contentText?: string;
     minTextLength?: number;
-    adSlot?: string;
   } = $props();
 
-  const isEligible = $derived(
-    isAdEligible(page.url.pathname) && contentText.trim().length >= minTextLength,
-  );
-
   onMount(() => {
-    if (!isEligible) return;
-
-    const pushAd = () => {
-      const ads = (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle ?? [];
-      ads.push({});
-      (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle = ads;
-    };
-
-    pushAd();
+    const ads = (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle ?? [];
+    ads.push({});
+    (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle = ads;
   });
 </script>
 
-{#if isEligible}
-  <ins
-    class="adsbygoogle ad-slot"
-    style="display:block"
-    data-ad-client="ca-pub-6454601651628271"
-    data-ad-slot={adSlot}
-    data-ad-format="auto"
-    data-full-width-responsive="true"
-  ></ins>
-{/if}
+<ins
+  class="adsbygoogle ad-slot"
+  style="display:block"
+  data-ad-client="ca-pub-6454601651628271"
+  data-ad-slot={adSlot}
+  data-ad-format="auto"
+  data-full-width-responsive="true"
+></ins>
 
 <style>
   .ad-slot {
