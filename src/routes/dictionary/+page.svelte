@@ -208,6 +208,14 @@
   );
 </script>
 
+<svelte:head>
+  <title>Sign Gallery | ASL Department Dictionary</title>
+  <meta
+    name="description"
+    content="Browse and search animated American Sign Language signs by word, source, and unit."
+  />
+</svelte:head>
+
 <div class="container-fluid">
   <div class="row">
     <aside

@@ -4,13 +4,17 @@
 	import { page } from '$app/state';
 	import AdSlot from '$lib/components/AdSlot.svelte';
 	import { isAdPath, measureContentText, MIN_TEXT_CHARS } from '$lib/ads';
+	import { SITE_URL } from '$lib/site';
 	import '../app.css';
 
 	let { children } = $props();
 	let contentEl: HTMLDivElement;
 	let showAd = $state(false);
 	let scriptLoaded = $state(false);
-	const canonicalUrl = $derived(`https://asldepartmentdictionary.org${page.url.pathname}`);
+	const canonicalPath = $derived(
+		page.url.pathname === '/' ? '/' : page.url.pathname.replace(/\/+$/, '') || '/',
+	);
+	const canonicalUrl = $derived(`${SITE_URL}${canonicalPath}`);
 
 	$effect(() => {
 		const pathname = page.url.pathname;

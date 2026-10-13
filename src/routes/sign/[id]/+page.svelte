@@ -1,32 +1,11 @@
 <script lang="ts">
   import AdSlot from '$lib/components/AdSlot.svelte';
   import { ADS_ENABLED_ON_SIGN_PAGES } from '$lib/adConfig';
-  import { SIGN_CONTENT_MIN_FILLED_FIELDS } from '$lib/signContent';
 
   let { data } = $props();
 
   const sources = $derived([...new Set(data.books.map((book) => book.source).filter(Boolean))]);
   const units = $derived([...new Set(data.books.map((book) => book.category).filter(Boolean))]);
-  const teachingLabels = $derived([
-    ...sources,
-    ...units.map((unit) => `unit ${unit}`),
-  ]);
-  const parameterLabels = $derived([
-    data.sign.handshape && 'handshape',
-    data.sign.location && 'location',
-    data.sign.movement && 'movement',
-    data.sign.palmOrientation && 'palm orientation',
-    data.sign.nonManualSignals && 'non-manual signals',
-  ].filter(Boolean));
-  const aboutSentences = $derived([
-    teachingLabels.length > 0
-      ? `The sign for "${data.sign.word}" is taught in ${teachingLabels.join(', ')}.`
-      : `The sign for "${data.sign.word}" is included in this dictionary.`,
-    parameterLabels.length > 0
-      ? `It includes ${parameterLabels.join(', ')} information.`
-      : '',
-  ].filter(Boolean));
-  const aboutText = $derived(aboutSentences.join(' '));
   const primarySource = $derived(sources[0] ?? 'ASL');
   const metaDescription = $derived(
     `${data.sign.word} in ASL, from ${primarySource}, with a GIF and sign details.`.slice(0, 159),
@@ -55,16 +34,10 @@
     </div>
     <div class="col-12 col-lg-6">
       <h1 class="h2">{data.sign.word}</h1>
-      {#if !data.isContentReady}
-        <p class="text-muted">{data.filledFieldCount} of {SIGN_CONTENT_MIN_FILLED_FIELDS} minimum content fields filled.</p>
-      {/if}
     </div>
   </div>
 
   <section class="mt-4" aria-labelledby="sign-details-heading">
-    <h2 id="sign-details-heading" class="h4">About this sign</h2>
-    <p>{aboutText}</p>
-
     <dl class="row g-2 sign-fields">
       {#if data.sign.gloss}<dt class="col-sm-4">Gloss</dt><dd class="col-sm-8">{data.sign.gloss}</dd>{/if}
       {#if sources.length > 0}<dt class="col-sm-4">Source{sources.length === 1 ? '' : 's'}</dt><dd class="col-sm-8">{sources.join(', ')}</dd>{/if}
