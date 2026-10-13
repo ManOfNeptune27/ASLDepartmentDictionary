@@ -12,7 +12,7 @@
 
 	<p>
 		This policy explains what information the ASL Department Dictionary
-		(asldepartmentdictionary.org) collects, how it is used, and the choices you have.
+		(www.asldepartmentdictionary.org) collects, how it is used, and the choices you have.
 	</p>
 
 	<h2>Browsing the dictionary</h2>

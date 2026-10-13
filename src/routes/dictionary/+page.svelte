@@ -285,7 +285,7 @@
         <div
           class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2 mb-2"
         >
-          <h2 class="h4 m-0 content-title">Sign Gallery</h2>
+          <h1 class="h4 m-0 content-title">Sign Gallery</h1>
           <input
             type="search"
             class="form-control gallery-search"

@@ -58,7 +58,7 @@
 	<header class="text-white py-3 app-header">
 		<div class="container-fluid d-flex align-items-center px-3">
 			<a href="/" class="text-decoration-none text-white">
-				<h1 class="m-0 app-title">ASL Dictionary</h1>
+				<div class="m-0 app-title">ASL Dictionary</div>
 			</a>
 		</div>
 	</header>

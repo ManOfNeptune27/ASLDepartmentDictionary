@@ -55,7 +55,7 @@
 		<li><strong>Gloss:</strong> a written label or meaning for the sign</li>
 		<li>
 			<strong>Handshape:</strong> the shape and position of the fingers and hand, such as a flat
-			hand, a fist, or Signed Letters
+			hand, a fist, or the letter "C"
 		</li>
 		<li>
 			<strong>Palm orientation:</strong> the direction the palm faces during the sign, such as up,
