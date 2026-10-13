@@ -206,7 +206,7 @@ export const actions: Actions = {
     const formData = await request.formData();
 
     const word = toText(formData.get('word'));
-    const gloss = toNullableText(formData.get('gloss'));
+    const gloss = toDatabaseMetadata(formData.get('gloss'));
     const books = formData.getAll('books').map((value) => toText(value)).filter(Boolean);
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
@@ -221,11 +221,11 @@ export const actions: Actions = {
     });
 
     const allowDuplicate = toText(formData.get('allowDuplicate')) === 'true';
-    const handshape = toNullableText(formData.get('handshape'));
-    const location = toNullableText(formData.get('location'));
-    const movement = toNullableText(formData.get('movement'));
-    const palmOrientation = toNullableText(formData.get('palmOrientation'));
-    const nonManualSignals = toNullableText(formData.get('nonManualSignals'));
+    const handshape = toDatabaseMetadata(formData.get('handshape'));
+    const location = toDatabaseMetadata(formData.get('location'));
+    const movement = toDatabaseMetadata(formData.get('movement'));
+    const palmOrientation = toDatabaseMetadata(formData.get('palmOrientation'));
+    const nonManualSignals = toDatabaseMetadata(formData.get('nonManualSignals'));
 
     // Now accepts URL and size instead of file
     const gifUrl = toText(formData.get('gifUrl'));

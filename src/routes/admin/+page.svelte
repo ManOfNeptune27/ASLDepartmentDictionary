@@ -630,7 +630,7 @@
 
         <div>
           <label class="form-label" for="gif">GIF Upload</label>
-          <input id="gif" name="gif" type="file" accept="image/gif" onchange={handleGifChange} class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}" required />
+          <input id="gif" name="gif" type="file" accept=".gif,image/gif" onchange={handleGifChange} class="form-control {form?.errors?.gif || uploadError ? 'is-invalid' : ''}" required />
           <div class="form-text">Only .gif files are accepted.</div>
           {#if form?.errors?.gif}<div class="invalid-feedback d-block">{form.errors.gif}</div>{/if}
           {#if uploadError}<div class="invalid-feedback d-block">{uploadError}</div>{/if}

@@ -14,9 +14,19 @@ const r2 = new AwsClient({
   region: 'auto',
 });
 
+function gifKey(filename: string): string {
+  const basename = filename.split(/[\\/]/).pop() ?? filename;
+  const safeFilename = basename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return `${Date.now()}-${safeFilename || 'upload.gif'}`;
+}
+
+function encodedObjectUrl(key: string): string {
+  return `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${encodeURIComponent(key)}`;
+}
+
 export async function uploadGif(file: File): Promise<string> {
-  const filename = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${filename}`;
+  const key = gifKey(file.name);
+  const url = encodedObjectUrl(key);
 
   const buffer = await file.arrayBuffer();
 
@@ -26,21 +36,22 @@ export async function uploadGif(file: File): Promise<string> {
     body: buffer,
   });
 
-  return `${R2_PUBLIC_URL}/${filename}`;
+  return `${R2_PUBLIC_URL}/${encodeURIComponent(key)}`;
 }
 
 export async function deleteGif(gifUrl: string): Promise<void> {
   const filename = gifUrl.split('/').pop();
   if (!filename) return;
 
-  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${filename}`;
+  const key = decodeURIComponent(filename);
+  const url = encodedObjectUrl(key);
 
   await r2.fetch(url, { method: 'DELETE' });
 }
 
 export async function uploadGifBuffer(buffer: ArrayBuffer, filename: string): Promise<string> {
-  const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
-  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${key}`;
+  const key = gifKey(filename);
+  const url = encodedObjectUrl(key);
 
   await r2.fetch(url, {
     method: 'PUT',
@@ -48,17 +59,17 @@ export async function uploadGifBuffer(buffer: ArrayBuffer, filename: string): Pr
     body: buffer,
   });
 
-  return `${R2_PUBLIC_URL}/${key}`;
+  return `${R2_PUBLIC_URL}/${encodeURIComponent(key)}`;
 }
 
 export async function createGifUploadUrl(filename: string): Promise<{ uploadUrl: string; publicUrl: string }> {
-  const key = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
-  const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${key}`;
+  const key = gifKey(filename);
+  const url = encodedObjectUrl(key);
   const signedRequest = await r2.sign(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'image/gif' },
     aws: { signQuery: true },
   });
 
-  return { uploadUrl: signedRequest.url, publicUrl: `${R2_PUBLIC_URL}/${key}` };
+  return { uploadUrl: signedRequest.url, publicUrl: `${R2_PUBLIC_URL}/${encodeURIComponent(key)}` };
 }
