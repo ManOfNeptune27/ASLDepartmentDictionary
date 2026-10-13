@@ -1,76 +1,81 @@
 <script lang="ts">
   import AdSlot from '$lib/components/AdSlot.svelte';
-  import CategoryPill from '$lib/components/CategoryPill.svelte';
-  import SourcePill from '$lib/components/SourcePill.svelte';
   import { ADS_ENABLED_ON_SIGN_PAGES } from '$lib/adConfig';
   import { SIGN_CONTENT_MIN_FILLED_FIELDS } from '$lib/signContent';
 
   let { data } = $props();
 
-  const sourceNames: Record<string, string> = {
-    'Signing Naturally': 'Signing Naturally',
-    'True Way ASL': 'True Way ASL',
-    MISCELLANEOUS: 'Miscellaneous',
-  };
-
-  function sourcePill(source: string): 'SN' | 'TWA' | 'MISCELLANEOUS' {
-    if (source === 'Signing Naturally') return 'SN';
-    if (source === 'True Way ASL') return 'TWA';
-    return 'MISCELLANEOUS';
-  }
-
-  function displaySource(source: string) {
-    return sourceNames[source] ?? source;
-  }
+  const sources = $derived([...new Set(data.books.map((book) => book.source).filter(Boolean))]);
+  const units = $derived([...new Set(data.books.map((book) => book.category).filter(Boolean))]);
+  const teachingLabels = $derived([
+    ...sources,
+    ...units.map((unit) => `unit ${unit}`),
+  ]);
+  const parameterLabels = $derived([
+    data.sign.handshape && 'handshape',
+    data.sign.location && 'location',
+    data.sign.movement && 'movement',
+    data.sign.palmOrientation && 'palm orientation',
+    data.sign.nonManualSignals && 'non-manual signals',
+  ].filter(Boolean));
+  const aboutSentences = $derived([
+    teachingLabels.length > 0
+      ? `The sign for "${data.sign.word}" is taught in ${teachingLabels.join(', ')}.`
+      : `The sign for "${data.sign.word}" is included in this dictionary.`,
+    parameterLabels.length > 0
+      ? `It includes ${parameterLabels.join(', ')} information.`
+      : '',
+  ].filter(Boolean));
+  const aboutText = $derived(aboutSentences.join(' '));
+  const primarySource = $derived(sources[0] ?? 'ASL');
+  const metaDescription = $derived(
+    `${data.sign.word} in ASL, from ${primarySource}, with a GIF and sign details.`.slice(0, 159),
+  );
 </script>
 
 <svelte:head>
-  <title>{data.sign.word} | ASL Department Dictionary</title>
-  <meta
-    name="description"
-    content={`${data.sign.word} ASL sign entry with GIF, gloss, and sign parameters.`}
-  />
+  <title>{data.sign.word} in ASL | ASL Department Dictionary</title>
+  <meta name="description" content={metaDescription} />
   {#if !data.isContentReady}
     <meta name="robots" content="noindex, nofollow" />
   {/if}
 </svelte:head>
 
 <main class="container py-4 sign-page">
-  <a href="/" class="btn btn-outline-secondary btn-sm mb-4">Back to dictionary</a>
+  <a href="/dictionary" class="btn btn-outline-secondary btn-sm mb-4">Back to dictionary</a>
   <div class="row g-4">
     <div class="col-12 col-lg-6">
       {#if data.sign.gifUrl}
-        <img src={data.sign.gifUrl} alt={data.sign.word} class="img-fluid rounded sign-gif" />
+        <img
+          src={data.sign.gifUrl}
+          alt={data.sign.gloss ? `${data.sign.word}, ${data.sign.gloss}` : data.sign.word}
+          class="img-fluid rounded sign-gif"
+        />
       {/if}
     </div>
     <div class="col-12 col-lg-6">
       <h1 class="h2">{data.sign.word}</h1>
-      {#if data.isContentReady}
+      {#if !data.isContentReady}
         <p class="text-muted">{data.filledFieldCount} of {SIGN_CONTENT_MIN_FILLED_FIELDS} minimum content fields filled.</p>
       {/if}
-
-      {#if data.books.length > 0}
-        <div class="d-flex flex-wrap gap-2 mb-4">
-          {#each data.books as book}
-            <span class="d-inline-flex align-items-center gap-2">
-              <SourcePill source={sourcePill(book.source)} />
-              {#if book.category}<CategoryPill category={book.category} />{/if}
-              <span class="visually-hidden">{displaySource(book.source)}</span>
-            </span>
-          {/each}
-        </div>
-      {/if}
-
-      <dl class="row g-2 sign-fields">
-        {#if data.sign.gloss}<dt class="col-sm-4">Gloss</dt><dd class="col-sm-8">{data.sign.gloss}</dd>{/if}
-        {#if data.sign.handshape}<dt class="col-sm-4">Handshape</dt><dd class="col-sm-8">{data.sign.handshape}</dd>{/if}
-        {#if data.sign.location}<dt class="col-sm-4">Location</dt><dd class="col-sm-8">{data.sign.location}</dd>{/if}
-        {#if data.sign.movement}<dt class="col-sm-4">Movement</dt><dd class="col-sm-8">{data.sign.movement}</dd>{/if}
-        {#if data.sign.palmOrientation}<dt class="col-sm-4">Palm orientation</dt><dd class="col-sm-8">{data.sign.palmOrientation}</dd>{/if}
-        {#if data.sign.nonManualSignals}<dt class="col-sm-4">Non-manual signals</dt><dd class="col-sm-8">{data.sign.nonManualSignals}</dd>{/if}
-      </dl>
     </div>
   </div>
+
+  <section class="mt-4" aria-labelledby="sign-details-heading">
+    <h2 id="sign-details-heading" class="h4">About this sign</h2>
+    <p>{aboutText}</p>
+
+    <dl class="row g-2 sign-fields">
+      {#if data.sign.gloss}<dt class="col-sm-4">Gloss</dt><dd class="col-sm-8">{data.sign.gloss}</dd>{/if}
+      {#if sources.length > 0}<dt class="col-sm-4">Source{sources.length === 1 ? '' : 's'}</dt><dd class="col-sm-8">{sources.join(', ')}</dd>{/if}
+      {#if units.length > 0}<dt class="col-sm-4">Unit{units.length === 1 ? '' : 's'}</dt><dd class="col-sm-8">{units.join(', ')}</dd>{/if}
+      {#if data.sign.handshape}<dt class="col-sm-4">Handshape</dt><dd class="col-sm-8">{data.sign.handshape}</dd>{/if}
+      {#if data.sign.location}<dt class="col-sm-4">Location</dt><dd class="col-sm-8">{data.sign.location}</dd>{/if}
+      {#if data.sign.movement}<dt class="col-sm-4">Movement</dt><dd class="col-sm-8">{data.sign.movement}</dd>{/if}
+      {#if data.sign.palmOrientation}<dt class="col-sm-4">Palm orientation</dt><dd class="col-sm-8">{data.sign.palmOrientation}</dd>{/if}
+      {#if data.sign.nonManualSignals}<dt class="col-sm-4">Non-manual signals</dt><dd class="col-sm-8">{data.sign.nonManualSignals}</dd>{/if}
+    </dl>
+  </section>
 
   {#if data.relatedGroups.length > 0}
     <section class="mt-5" aria-labelledby="related-signs-heading">

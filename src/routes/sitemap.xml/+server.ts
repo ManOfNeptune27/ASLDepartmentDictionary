@@ -29,7 +29,7 @@ export async function GET() {
     args: [SIGN_CONTENT_MIN_FILLED_FIELDS],
   });
 
-  const paths = ['/', '/about', '/contact', '/terms', '/privacy'];
+  const paths = ['/', '/dictionary', '/about', '/contact', '/terms', '/privacy'];
   const urls = [
     ...paths.map((path) => `${siteUrl}${path}`),
     ...result.rows.map((row) => `${siteUrl}/sign/${Number(row.id)}`),
