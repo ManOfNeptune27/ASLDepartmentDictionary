@@ -13,6 +13,7 @@
   ];
 
   const PAIR_SEP = "|||";
+  const bookLabels = Object.fromEntries(bookOptions.map((option) => [option.value, option.label]));
 
   function pillSource(book: string): "SN" | "TWA" | "MISCELLANEOUS" {
     if (book === "Signing Naturally") return "SN";
@@ -21,8 +22,9 @@
   }
 
   let selectedBooks = $state<string[]>([]);
-  let unitSelectionByBook = $state<Record<string, string>>({});
+  let unitSelectionByBook = $state<Record<string, string[]>>({});
   let newUnitByBook = $state<Record<string, string>>({});
+  let showAssignmentPicker = $state(false);
   let deleteSearch = $state("");
   let signFilter = $state("all");
   let signUnitFilter = $state("all");
@@ -41,24 +43,23 @@
 
   // Edit form state
   let editSelectedBooks = $state<string[]>([]);
-  let editUnitSelectionByBook = $state<Record<string, string>>({});
+  let editUnitSelectionByBook = $state<Record<string, string[]>>({});
   let editNewUnitByBook = $state<Record<string, string>>({});
+  let showEditAssignmentPicker = $state(false);
 
   const editBookUnitPairs = $derived(
-    editSelectedBooks.map((book) => {
-      const sel = editUnitSelectionByBook[book] ?? "";
-      if (sel === ADD_NEW_UNIT_VALUE) {
-        return `${book}${PAIR_SEP}${ADD_NEW_UNIT_VALUE}${PAIR_SEP}${editNewUnitByBook[book] ?? ""}`;
-      }
-      return `${book}${PAIR_SEP}${sel}`;
-    }),
+    editSelectedBooks.flatMap((book) =>
+      (editUnitSelectionByBook[book] ?? []).map((unit) =>
+        unit === ADD_NEW_UNIT_VALUE
+          ? `${book}${PAIR_SEP}${ADD_NEW_UNIT_VALUE}${PAIR_SEP}${editNewUnitByBook[book] ?? ""}`
+          : `${book}${PAIR_SEP}${unit}`,
+      ),
+    ),
   );
 
   $effect(() => {
     const booksSet = new Set(editSelectedBooks);
-    const stale = Object.keys(editUnitSelectionByBook).filter(
-      (b) => !booksSet.has(b),
-    );
+    const stale = Object.keys(editUnitSelectionByBook).filter((b) => !booksSet.has(b));
     if (stale.length > 0) {
       const next = { ...editUnitSelectionByBook };
       for (const b of stale) delete next[b];
@@ -70,16 +71,20 @@
     editingSignId = sign.id;
     editError = "";
     editSelectedBooks = sign.books.map((b: any) => b.book);
-    editUnitSelectionByBook = Object.fromEntries(
-      sign.books.map((b: any) => [b.book, b.unit])
-    );
+    editUnitSelectionByBook = sign.books.reduce((result: Record<string, string[]>, book: any) => {
+      result[book.book] ??= [];
+      if (!result[book.book].includes(book.unit)) result[book.book].push(book.unit);
+      return result;
+    }, {});
     editNewUnitByBook = {};
+    showEditAssignmentPicker = true;
   }
 
   function enhanceEdit() {
     return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
       if (result.type === "success") {
         editingSignId = null;
+        showEditAssignmentPicker = false;
         editError = "";
         await update();
       } else {
@@ -166,7 +171,7 @@
       const pairs: string[] = Array.isArray(form.values.bookUnitPairs)
         ? form.values.bookUnitPairs
         : [];
-      const selMap: Record<string, string> = {};
+      const selMap: Record<string, string[]> = {};
       const newMap: Record<string, string> = {};
       for (const pair of pairs) {
         const parts = pair.split(PAIR_SEP);
@@ -174,7 +179,8 @@
         const unit = parts[1] ?? "";
         const custom = parts[2] ?? "";
         if (book) {
-          selMap[book] = unit;
+          selMap[book] ??= [];
+          if (!selMap[book].includes(unit)) selMap[book].push(unit);
           if (unit === ADD_NEW_UNIT_VALUE) newMap[book] = custom;
         }
       }
@@ -203,9 +209,7 @@
 
   $effect(() => {
     const booksSet = new Set(selectedBooks);
-    const stale = Object.keys(unitSelectionByBook).filter(
-      (b) => !booksSet.has(b),
-    );
+    const stale = Object.keys(unitSelectionByBook).filter((b) => !booksSet.has(b));
     if (stale.length > 0) {
       const next = { ...unitSelectionByBook };
       for (const b of stale) delete next[b];
@@ -214,14 +218,36 @@
   });
 
   const bookUnitPairs = $derived(
-    selectedBooks.map((book) => {
-      const sel = unitSelectionByBook[book] ?? "";
-      if (sel === ADD_NEW_UNIT_VALUE) {
-        return `${book}${PAIR_SEP}${ADD_NEW_UNIT_VALUE}${PAIR_SEP}${newUnitByBook[book] ?? ""}`;
-      }
-      return `${book}${PAIR_SEP}${sel}`;
-    }),
+    selectedBooks.flatMap((book) =>
+      (unitSelectionByBook[book] ?? []).map((unit) =>
+        unit === ADD_NEW_UNIT_VALUE
+          ? `${book}${PAIR_SEP}${ADD_NEW_UNIT_VALUE}${PAIR_SEP}${newUnitByBook[book] ?? ""}`
+          : `${book}${PAIR_SEP}${unit}`,
+      ),
+    ),
   );
+
+  function toggleUnit(book: string, unit: string, edit = false) {
+    const selections = edit ? editUnitSelectionByBook : unitSelectionByBook;
+    const next = [...(selections[book] ?? [])];
+    const index = next.indexOf(unit);
+    if (index === -1) next.push(unit);
+    else next.splice(index, 1);
+
+    if (edit) editUnitSelectionByBook = { ...editUnitSelectionByBook, [book]: next };
+    else unitSelectionByBook = { ...unitSelectionByBook, [book]: next };
+  }
+
+  function selectedUnits(book: string, edit = false) {
+    return (edit ? editUnitSelectionByBook[book] : unitSelectionByBook[book] ?? [])
+      .filter((unit) => unit !== ADD_NEW_UNIT_VALUE)
+      .concat(
+        (edit ? editUnitSelectionByBook[book] : unitSelectionByBook[book] ?? [])
+          .includes(ADD_NEW_UNIT_VALUE)
+          ? [edit ? editNewUnitByBook[book] || "New unit" : newUnitByBook[book] || "New unit"]
+          : [],
+      );
+  }
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -566,30 +592,75 @@
 
         {#if selectedBooks.length > 0}
           <div>
-            <p class="form-label mb-2">Units</p>
-            <div class="d-flex flex-column gap-2 {form?.errors?.bookUnitPairs ? 'is-invalid' : ''}">
-              {#each selectedBooks as book}
-                {@const bookId = book.replace(/\s+/g, "-").toLowerCase()}
-                {@const isAddingNew = (unitSelectionByBook[book] ?? "") === ADD_NEW_UNIT_VALUE}
-                {@const existingUnits = data?.unitsByBook?.[book] ?? []}
-                <div class="border rounded p-2">
-                  <label class="form-label mb-1 fw-semibold" for={`unit-${bookId}`}>{book}</label>
-                  <select id={`unit-${bookId}`} class="form-select form-select-sm" bind:value={unitSelectionByBook[book]} required>
-                    <option value="">Select unit for {book}</option>
-                    {#each existingUnits as unitOption}
-                      <option value={unitOption}>{unitOption}</option>
-                    {/each}
-                    <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
-                  </select>
-                  {#if isAddingNew}
-                    <input class="form-control form-control-sm mt-2" bind:value={newUnitByBook[book]} placeholder="Example: Unit 4: Community" required />
-                    <div class="form-text">Enter the new unit name for {book}.</div>
-                  {/if}
-                </div>
-              {/each}
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <p class="form-label mb-0">Units and categories</p>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick={() => showAssignmentPicker = true}>
+                Choose assignments
+              </button>
+            </div>
+            <div class="small text-muted mt-2">
+              {#if bookUnitPairs.length > 0}
+                {bookUnitPairs.length} assignment{bookUnitPairs.length === 1 ? "" : "s"} selected
+              {:else}
+                No units selected yet
+              {/if}
             </div>
             {#if form?.errors?.bookUnitPairs}<div class="invalid-feedback d-block">{form.errors.bookUnitPairs}</div>{/if}
           </div>
+        {/if}
+
+        {#if showAssignmentPicker}
+          <div class="modal d-block" role="dialog" aria-modal="true" aria-labelledby="assignment-picker-title">
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h2 id="assignment-picker-title" class="modal-title fs-5">Choose units and categories</h2>
+                  <button type="button" class="btn-close" aria-label="Close" onclick={() => showAssignmentPicker = false}></button>
+                </div>
+                <div class="modal-body assignment-picker-body">
+                  <div class="assignment-picker-help small text-muted">
+                    Choose every unit or category where this sign should appear.
+                  </div>
+                  {#each selectedBooks as book}
+                    {@const existingUnits = data?.unitsByBook?.[book] ?? []}
+                    <fieldset class="assignment-group">
+                      <legend class="assignment-group-title">
+                        <span>{bookLabels[book] ?? book}</span>
+                        <span class="badge text-bg-light fw-normal">{selectedUnits(book).length} selected</span>
+                      </legend>
+                      <div class="assignment-options">
+                        {#each existingUnits as unitOption}
+                          <button
+                            type="button"
+                            class="assignment-option {(unitSelectionByBook[book] ?? []).includes(unitOption) ? 'selected' : ''}"
+                            aria-pressed={(unitSelectionByBook[book] ?? []).includes(unitOption)}
+                            onclick={() => toggleUnit(book, unitOption)}
+                          >
+                            {unitOption}
+                          </button>
+                        {/each}
+                        <button
+                          type="button"
+                          class="assignment-option add-option {(unitSelectionByBook[book] ?? []).includes(ADD_NEW_UNIT_VALUE) ? 'selected' : ''}"
+                          aria-pressed={(unitSelectionByBook[book] ?? []).includes(ADD_NEW_UNIT_VALUE)}
+                          onclick={() => toggleUnit(book, ADD_NEW_UNIT_VALUE)}
+                        >
+                          + Add new
+                        </button>
+                      </div>
+                      {#if (unitSelectionByBook[book] ?? []).includes(ADD_NEW_UNIT_VALUE)}
+                        <input class="form-control form-control-sm mt-2" bind:value={newUnitByBook[book]} placeholder="Example: Unit 4: Community" />
+                      {/if}
+                    </fieldset>
+                  {/each}
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-primary" onclick={() => showAssignmentPicker = false}>Done</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-backdrop fade show"></div>
         {/if}
 
         {#each bookUnitPairs as pair}
@@ -786,26 +857,63 @@
                       </fieldset>
 
                       {#if editSelectedBooks.length > 0}
-                        <div class="d-flex flex-column gap-2">
-                          {#each editSelectedBooks as book}
-                            {@const bookId = `edit-${sign.id}-${book.replace(/\s+/g, "-").toLowerCase()}`}
-                            {@const isAddingNew = (editUnitSelectionByBook[book] ?? "") === ADD_NEW_UNIT_VALUE}
-                            {@const existingUnits = data?.unitsByBook?.[book] ?? []}
-                            <div class="border rounded p-2">
-                              <label class="form-label mb-1 fw-semibold small" for={bookId}>{book}</label>
-                              <select id={bookId} class="form-select form-select-sm" bind:value={editUnitSelectionByBook[book]}>
-                                <option value="">Select unit</option>
-                                {#each existingUnits as unitOption}
-                                  <option value={unitOption}>{unitOption}</option>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick={() => showEditAssignmentPicker = true}>
+                          Choose units and categories
+                        </button>
+                      {/if}
+
+                      {#if showEditAssignmentPicker}
+                        <div class="modal d-block" role="dialog" aria-modal="true" aria-labelledby={`edit-assignment-picker-title-${sign.id}`}>
+                          <div class="modal-dialog modal-dialog-centered modal-xl">
+                            <div class="modal-content">
+                              <div class="modal-header">
+                                <h2 id={`edit-assignment-picker-title-${sign.id}`} class="modal-title fs-5">Choose units and categories</h2>
+                                <button type="button" class="btn-close" aria-label="Close" onclick={() => showEditAssignmentPicker = false}></button>
+                              </div>
+                              <div class="modal-body assignment-picker-body">
+                                <div class="assignment-picker-help small text-muted">
+                                  Choose every unit or category where this sign should appear.
+                                </div>
+                                {#each editSelectedBooks as book}
+                                  {@const existingUnits = data?.unitsByBook?.[book] ?? []}
+                                  <fieldset class="assignment-group">
+                                    <legend class="assignment-group-title">
+                                      <span>{bookLabels[book] ?? book}</span>
+                                      <span class="badge text-bg-light fw-normal">{selectedUnits(book, true).length} selected</span>
+                                    </legend>
+                                    <div class="assignment-options">
+                                      {#each existingUnits as unitOption}
+                                        <button
+                                          type="button"
+                                          class="assignment-option {(editUnitSelectionByBook[book] ?? []).includes(unitOption) ? 'selected' : ''}"
+                                          aria-pressed={(editUnitSelectionByBook[book] ?? []).includes(unitOption)}
+                                          onclick={() => toggleUnit(book, unitOption, true)}
+                                        >
+                                          {unitOption}
+                                        </button>
+                                      {/each}
+                                      <button
+                                        type="button"
+                                        class="assignment-option add-option {(editUnitSelectionByBook[book] ?? []).includes(ADD_NEW_UNIT_VALUE) ? 'selected' : ''}"
+                                        aria-pressed={(editUnitSelectionByBook[book] ?? []).includes(ADD_NEW_UNIT_VALUE)}
+                                        onclick={() => toggleUnit(book, ADD_NEW_UNIT_VALUE, true)}
+                                      >
+                                        + Add new
+                                      </button>
+                                    </div>
+                                    {#if (editUnitSelectionByBook[book] ?? []).includes(ADD_NEW_UNIT_VALUE)}
+                                      <input class="form-control form-control-sm mt-2" bind:value={editNewUnitByBook[book]} placeholder="New unit name" />
+                                    {/if}
+                                  </fieldset>
                                 {/each}
-                                <option value={ADD_NEW_UNIT_VALUE}>+ Add a new unit</option>
-                              </select>
-                              {#if isAddingNew}
-                                <input class="form-control form-control-sm mt-2" bind:value={editNewUnitByBook[book]} placeholder="New unit name" />
-                              {/if}
+                              </div>
+                              <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" onclick={() => showEditAssignmentPicker = false}>Done</button>
+                              </div>
                             </div>
-                          {/each}
+                          </div>
                         </div>
+                        <div class="modal-backdrop fade show"></div>
                       {/if}
 
                       {#each editBookUnitPairs as pair}

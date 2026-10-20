@@ -60,7 +60,7 @@ This project now includes a starter admin form for teachers at `/admin`.
 
 - Accepts sign metadata (`word`, `gloss`, `books`, `unit`, parameters)
 - Supports book selection from: Signing naturally, True Way ASL, MISCELLANEOUS
-- Provides a guided unit selector with an `+ Add a new unit` option for easier teacher input
+- Provides a multi-select unit/category picker with an `+ Add a new unit` option for easier teacher input
 - Accepts a GIF upload (`image/gif` only)
 - Validates all required fields server-side
 - Warns when a submitted word already exists in another book/unit to help avoid duplicates

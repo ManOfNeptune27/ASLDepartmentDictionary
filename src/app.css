@@ -230,6 +230,82 @@ footer {
   border-color: var(--ocean-border) !important;
 }
 
+.assignment-picker-help {
+  grid-column: 1 / -1;
+  padding-bottom: 0.25rem;
+}
+
+.assignment-picker-body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.assignment-group {
+  margin: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--ocean-border);
+  border-radius: 0.5rem;
+  background: var(--ocean-surface);
+}
+
+.assignment-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin-bottom: 0.75rem;
+  color: var(--ocean-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.assignment-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem;
+}
+
+.assignment-option {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--ocean-border);
+  border-radius: 0.4rem;
+  background: var(--ocean-bg);
+  color: var(--ocean-text-muted);
+  text-align: left;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.assignment-option:hover,
+.assignment-option:focus-visible {
+  border-color: var(--ocean-primary);
+  color: var(--ocean-text);
+}
+
+.assignment-option.selected {
+  border-color: var(--ocean-primary);
+  background: color-mix(in srgb, var(--ocean-primary) 18%, var(--ocean-bg));
+  color: var(--ocean-text);
+  font-weight: 600;
+}
+
+.assignment-option.selected::before {
+  content: "✓ ";
+  color: var(--ocean-primary);
+}
+
+.assignment-option.add-option {
+  border-style: dashed;
+}
+
+@media (max-width: 991.98px) {
+  .assignment-picker-body {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 767.98px) {
   .sidebar-panel {
     border-right: 0;

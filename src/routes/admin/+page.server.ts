@@ -48,6 +48,21 @@ function gifWordFromFilename(filename: string) {
   return basename.replace(/\.gif$/i, '').trim();
 }
 
+function parseBookUnitPairs(formData: FormData) {
+  const pairs: { book: string; unit: string }[] = [];
+  for (const value of formData.getAll('bookUnitPair')) {
+    const parts = toText(value).split('|||');
+    const book = parts[0] ?? '';
+    const unitValue = parts[1] ?? '';
+    const customUnit = parts[2] ?? '';
+    const unit = unitValue === ADD_NEW_UNIT_VALUE ? customUnit : unitValue;
+    if (book && unit && !pairs.some((pair) => pair.book === book && pair.unit === unit)) {
+      pairs.push({ book, unit });
+    }
+  }
+  return pairs;
+}
+
 export const load: PageServerLoad = async ({ cookies }) => {
   await initDb();
 
@@ -210,15 +225,7 @@ export const actions: Actions = {
     const books = formData.getAll('books').map((value) => toText(value)).filter(Boolean);
 
     const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
-    const PAIR_SEP = '|||';
-    const bookUnitPairs: { book: string; unit: string }[] = rawPairs.map((raw) => {
-      const parts = raw.split(PAIR_SEP);
-      const book = parts[0] ?? '';
-      const unitVal = parts[1] ?? '';
-      const customUnit = parts[2] ?? '';
-      const unit = unitVal === ADD_NEW_UNIT_VALUE ? customUnit : unitVal;
-      return { book, unit };
-    });
+    const bookUnitPairs = parseBookUnitPairs(formData);
 
     const allowDuplicate = toText(formData.get('allowDuplicate')) === 'true';
     const handshape = toDatabaseMetadata(formData.get('handshape'));
@@ -239,10 +246,9 @@ export const actions: Actions = {
       bookUnitPairs.push({ book: 'MISCELLANEOUS', unit: 'Uncategorized' });
     }
 
-    const missingUnits = books.filter((book) => {
-      const pair = bookUnitPairs.find((p) => p.book === book);
-      return !pair || !pair.unit.trim();
-    });
+    const missingUnits = books.filter((book) =>
+      !bookUnitPairs.some((pair) => pair.book === book && pair.unit.trim()),
+    );
     if (missingUnits.length > 0) {
       errors.bookUnitPairs = `Please select a unit for: ${missingUnits.join(', ')}.`;
     }
@@ -504,22 +510,12 @@ export const actions: Actions = {
     const palmOrientation = toDatabaseMetadata(formData.get('palmOrientation'));
     const nonManualSignals = toDatabaseMetadata(formData.get('nonManualSignals'));
 
-    const rawPairs = formData.getAll('bookUnitPair').map((v) => toText(v)).filter(Boolean);
-    const PAIR_SEP = '|||';
-    const bookUnitPairs: { book: string; unit: string }[] = rawPairs.map((raw) => {
-      const parts = raw.split(PAIR_SEP);
-      const book = parts[0] ?? '';
-      const unitVal = parts[1] ?? '';
-      const customUnit = parts[2] ?? '';
-      const unit = unitVal === '__add_new_unit__' ? customUnit : unitVal;
-      return { book, unit };
-    });
+    const bookUnitPairs = parseBookUnitPairs(formData);
 
     const signId = Number(id);
     if (!id || !Number.isInteger(signId) || signId < 1) {
       return fail(400, { success: false, errors: { general: 'Missing or invalid sign ID.' } } as any);
     }
-
     await initDb();
     await db.execute({
       sql: `UPDATE signs SET word = ?, gloss = ?, handshape = ?, location = ?, movement = ?, palm_orientation = ?, non_manual_signals = ? WHERE id = ?`,
