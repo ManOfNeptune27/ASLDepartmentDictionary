@@ -4,6 +4,7 @@
   import { fade, fly, slide } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { sources, type Source } from "$lib";
+  import AdSlot from "$lib/components/AdSlot.svelte";
   import CategoryPill from "$lib/components/CategoryPill.svelte";
   import SourcePill from "$lib/components/SourcePill.svelte";
 
@@ -214,6 +215,11 @@
     name="description"
     content="Browse and search animated American Sign Language signs by word, source, and unit."
   />
+  <script
+    async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6454601651628271"
+    crossorigin="anonymous"
+  ></script>
 </svelte:head>
 
 <div class="container-fluid">
@@ -450,6 +456,10 @@
             </nav>
           {/if}
         {/if}
+
+        <div class="gallery-ad mt-4" aria-label="Advertisement">
+          <AdSlot />
+        </div>
       </div>
     </main>
   </div>
@@ -498,6 +508,10 @@
   .gallery-search {
     max-width: 320px;
     font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
+  }
+
+  .gallery-ad {
+    min-height: 90px;
   }
 
   .cards-scroll {
