@@ -2,7 +2,6 @@
 	import favicon from '$lib/assets/favicon.png';
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
-	import AdSlot from '$lib/components/AdSlot.svelte';
 	import { isAdPath, measureContentText, MIN_TEXT_CHARS } from '$lib/ads';
 	import { SITE_URL } from '$lib/site';
 	import '../app.css';
@@ -65,9 +64,6 @@
 
 	<div class="app-content" bind:this={contentEl}>
 		{@render children()}
-		{#if showAd}
-			<AdSlot />
-		{/if}
 	</div>
 
 	<footer class="text-center py-3 mt-4 border-top">

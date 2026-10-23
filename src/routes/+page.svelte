@@ -14,15 +14,15 @@
 
 	<h2 class="h4">About</h2>
 	<p>
-		This website is a place to help new students learn American Sign Language. Learning ASL
-		from a textbook description alone is hard, because signs depend on handshape, movement, and
+		This website is a place to help new students learn American Sign Language (ASL). Learning ASL
+		from a textbook description alone is hard since ASL is a non-verbal language and, because signs depend on handshape, movement, and
 		facial expression all at once. Here, every sign is shown as a short animated GIF so you can
-		watch it as many times as you need.
+		watch it as many times as you need. We also provide information on the 5 parameters for each sign provided and checked by ASL professors and Trained Interpreters.
 	</p>
 	<p>
-		The dictionary was built for the Kent State ASL program, and every sign was contributed by a
-		teacher who gave permission for it to be shared. It is meant to support your classes and
-		practice with Deaf signers, not replace them.
+		The dictionary was built for the Kent State ASL program with the help of their faculty, and every sign was contributed by a
+		teacher who gave permission for it to be shared and used here. It is meant to support your classes and help with practice not replace
+		anyone or anything.
 	</p>
 
 	<h2 class="h4 mt-5">How signs are organized</h2>
@@ -52,26 +52,26 @@
 		Each sign entry can include the following. These are often called the parameters of a sign.
 	</p>
 	<ul>
-		<li><strong>Gloss:</strong> a written label or meaning for the sign</li>
+		<li><strong>Gloss:</strong> a written label or meaning for the sign.</li>
 		<li>
 			<strong>Handshape:</strong> the shape and position of the fingers and hand, such as a flat
-			hand, a fist, or the letter "C"
+			hand, a fist, or the letter "C". Majority of which stem from the ASL Alphabet
 		</li>
 		<li>
 			<strong>Palm orientation:</strong> the direction the palm faces during the sign, such as up,
-			down, left, right, outward, or inward
+			down, left, right, outward, or inward.
 		</li>
 		<li>
 			<strong>Location:</strong> where the sign is made on or near the body, usually somewhere
-			between the head and the waist, such as the forehead, chin, or neutral space in front of you
+			between the head and the waist, such as the forehead, chin, or neutral space in front of you.
 		</li>
 		<li>
 			<strong>Movement:</strong> what the hands do, including the path, speed, and repetition, such
-			as tapping, circles, or arcs
+			as tapping, circles, or arcs.
 		</li>
 		<li>
 			<strong>Non-manual signals:</strong> facial expressions, head nods and shakes, mouth shapes,
-			and body posture, which add grammar, tone, and emotion
+			and body posture, which add grammar, tone, and emotion.
 		</li>
 	</ul>
 
