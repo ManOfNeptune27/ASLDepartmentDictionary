@@ -3,7 +3,7 @@ import { drizzleDb } from '$lib/db';
 import { signBooks, signs } from '$lib/schema';
 
 const DEFAULT_PAGE_SIZE = 24;
-const MAX_PAGE_SIZE = 60;
+const MAX_PAGE_SIZE = 500;
 
 export type SignFilters = {
   search?: string;
