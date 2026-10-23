@@ -1,10 +1,14 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.png';
 	import { tick } from 'svelte';
+	import { dev } from '$app/environment';
 	import { page } from '$app/state';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { isAdPath, measureContentText, MIN_TEXT_CHARS } from '$lib/ads';
 	import { SITE_URL } from '$lib/site';
 	import '../app.css';
+
+	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	let { children } = $props();
 	let contentEl: HTMLDivElement;
