@@ -235,6 +235,18 @@ footer {
   padding-bottom: 0.25rem;
 }
 
+.assignment-book-selector {
+  grid-column: 1 / -1;
+}
+
+.book-option {
+  cursor: pointer;
+}
+
+.book-option input {
+  margin-right: 0.45rem;
+}
+
 .assignment-picker-body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

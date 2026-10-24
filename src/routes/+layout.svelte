@@ -73,6 +73,7 @@
 	<footer class="text-center py-3 mt-4 border-top">
 		<nav class="d-flex flex-wrap justify-content-center gap-3" aria-label="Site information">
 			<a href="/about">About</a>
+			<a href="/quiz">Test Your Knowledge</a>
 			<a href="/contact">Contact</a>
 			<a href="/how-name-signs-work">How Name Signs Work</a>
 			<a href="/fingerspelling-basics">Fingerspelling Basics</a>

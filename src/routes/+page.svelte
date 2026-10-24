@@ -9,7 +9,10 @@
 <div class="container py-5" style="max-width: 760px;">
 	<div class="text-center mb-5">
 		<h1 class="display-4 mb-4">ASL Department Dictionary</h1>
-		<a class="btn btn-primary btn-lg" href="/dictionary">Browse the dictionary</a>
+		<div class="d-flex flex-column align-items-center gap-3">
+			<a class="btn btn-primary btn-lg home-action" href="/dictionary">Browse the dictionary</a>
+			<a class="btn btn-primary btn-lg home-action" href="/quiz">Test your knowledge</a>
+		</div>
 	</div>
 
 	<h2 class="h4">About</h2>
@@ -91,3 +94,10 @@
 		any textbook content.
 	</p>
 </div>
+
+<style>
+	.home-action {
+		width: 100%;
+		max-width: 300px;
+	}
+</style>
