@@ -77,7 +77,7 @@
       return result;
     }, {});
     editNewUnitByBook = {};
-    showEditAssignmentPicker = true;
+    showEditAssignmentPicker = false;
   }
 
   function enhanceEdit() {
@@ -238,12 +238,26 @@
     else unitSelectionByBook = { ...unitSelectionByBook, [book]: next };
   }
 
+  function toggleEditBook(book: string) {
+    if (editSelectedBooks.includes(book)) {
+      editSelectedBooks = editSelectedBooks.filter((selectedBook) => selectedBook !== book);
+      const nextUnits = { ...editUnitSelectionByBook };
+      delete nextUnits[book];
+      editUnitSelectionByBook = nextUnits;
+      return;
+    }
+
+    editSelectedBooks = [...editSelectedBooks, book];
+  }
+
   function selectedUnits(book: string, edit = false) {
-    return (edit ? editUnitSelectionByBook[book] : unitSelectionByBook[book] ?? [])
+    const selections = (edit
+      ? editUnitSelectionByBook[book]
+      : unitSelectionByBook[book]) ?? [];
+    return selections
       .filter((unit) => unit !== ADD_NEW_UNIT_VALUE)
       .concat(
-        (edit ? editUnitSelectionByBook[book] : unitSelectionByBook[book] ?? [])
-          .includes(ADD_NEW_UNIT_VALUE)
+        selections.includes(ADD_NEW_UNIT_VALUE)
           ? [edit ? editNewUnitByBook[book] || "New unit" : newUnitByBook[book] || "New unit"]
           : [],
       );
@@ -839,26 +853,32 @@
                         <input id={`edit-non-manual-${sign.id}`} name="nonManualSignals" class="form-control form-control-sm" value={sign.nonManualSignals} required />
                       </div>
 
-                      <!-- Book/Unit editing -->
-                      <fieldset class="border rounded p-2">
-                        <legend class="form-label d-block small fw-semibold">Books</legend>
-                        {#each bookOptions as option}
-                          <div class="form-check">
-                            <input
-                              id={`edit-book-${sign.id}-${option.value}`}
-                              type="checkbox"
-                              class="form-check-input"
-                              value={option.value}
-                              bind:group={editSelectedBooks}
-                            />
-                            <label class="form-check-label small" for={`edit-book-${sign.id}-${option.value}`}>{option.label}</label>
+                      <div class="border rounded p-2">
+                        <div class="small fw-semibold mb-1">Books &amp; sections</div>
+                        {#if editSelectedBooks.length > 0}
+                          <div class="small text-muted">
+                            {#each editSelectedBooks as book, index}
+                              {#if index > 0}<span aria-hidden="true"> · </span>{/if}
+                              <span>{bookLabels[book] ?? book}:</span>
+                              {#if selectedUnits(book, true).length > 0}
+                                {selectedUnits(book, true).join(", ")}
+                              {:else}
+                                No section selected
+                              {/if}
+                            {/each}
                           </div>
-                        {/each}
-                      </fieldset>
+                        {:else}
+                          <div class="small text-muted">No books or sections selected.</div>
+                        {/if}
+                      </div>
 
                       {#if editSelectedBooks.length > 0}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick={() => showEditAssignmentPicker = true}>
-                          Choose units and categories
+                          Edit books &amp; sections
+                        </button>
+                      {:else}
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick={() => showEditAssignmentPicker = true}>
+                          Add books &amp; sections
                         </button>
                       {/if}
 
@@ -874,7 +894,24 @@
                                 <div class="assignment-picker-help small text-muted">
                                   Choose every unit or category where this sign should appear.
                                 </div>
-                                {#each editSelectedBooks as book}
+                                <fieldset class="assignment-group assignment-book-selector">
+                                  <legend class="assignment-group-title">Books</legend>
+                                  <div class="assignment-options">
+                                    {#each bookOptions as option}
+                                      <label class="assignment-option book-option">
+                                        <input
+                                          type="checkbox"
+                                          value={option.value}
+                                          checked={editSelectedBooks.includes(option.value)}
+                                          onchange={() => toggleEditBook(option.value)}
+                                        />
+                                        {option.label}
+                                      </label>
+                                    {/each}
+                                  </div>
+                                </fieldset>
+                                {#each bookOptions as option}
+                                  {@const book = option.value}
                                   {@const existingUnits = data?.unitsByBook?.[book] ?? []}
                                   <fieldset class="assignment-group">
                                     <legend class="assignment-group-title">
