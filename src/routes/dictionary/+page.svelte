@@ -513,31 +513,34 @@
     margin-right: 0;
   }
 
-  .unit-panel .section-label {
+  .unit-panel,
+  .section-label {
     color: var(--bs-black);
   }
-
-  .unit-list .btn-outline-dark {
-    --bs-btn-color: var(--asl-muted);
-    --bs-btn-border-color: var(--asl-line);
-    --bs-btn-hover-color: var(--asl-text);
-    --bs-btn-hover-bg: var(--asl-surface-raised);
-    --bs-btn-hover-border-color: var(--asl-muted);
-    --bs-btn-active-color: var(--asl-text);
-    --bs-btn-active-bg: var(--asl-surface-raised);
-    --bs-btn-active-border-color: var(--asl-muted);
+ 
+  .unit-list,
+  .btn-outline-dark {
+    --bs-btn-color: var(--ocean-text);
+    --bs-btn-border-color: var(--ocean-border);
+    --bs-btn-hover-color: var(--ocean-bg);
+    --bs-btn-hover-bg: var(--ocean-accent);
+    --bs-btn-hover-border-color: var(--ocean-accent);
+    --bs-btn-active-color: var(--ocean-text);
+    --bs-btn-active-bg: var(--ocean-bg);
+    --bs-btn-active-border-color: var(--ocean-text);
   }
 
-  .unit-list .btn-dark {
-    --bs-btn-color: var(--asl-bg);
-    --bs-btn-bg: var(--asl-accent);
-    --bs-btn-border-color: var(--asl-accent);
-    --bs-btn-hover-color: var(--asl-bg);
-    --bs-btn-hover-bg: var(--asl-accent);
-    --bs-btn-hover-border-color: var(--asl-accent);
-    --bs-btn-active-color: var(--asl-bg);
-    --bs-btn-active-bg: var(--asl-accent);
-    --bs-btn-active-border-color: var(--asl-accent);
+  .unit-list,
+  .btn-dark {
+    --bs-btn-color: var(--ocean-bg);
+    --bs-btn-bg: var(--ocean-accent);
+    --bs-btn-border-color: var(--ocean-accent);
+    --bs-btn-hover-color: var(--ocean-bg);
+    --bs-btn-hover-bg: var(--ocean-accent);
+    --bs-btn-hover-border-color: var(--ocean-accent);
+    --bs-btn-active-color: var(--ocean-bg);
+    --bs-btn-active-bg: var(--ocean-accent);
+    --bs-btn-active-border-color: var(--ocean-accent);
   }
 
   .parameter-label {
