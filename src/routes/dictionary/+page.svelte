@@ -2,9 +2,11 @@
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
   import { fade, fly, slide } from "svelte/transition";
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
+  import { navigating, page } from "$app/state";
   import { sources, type Source } from "$lib";
   import CategoryPill from "$lib/components/CategoryPill.svelte";
+  import SignMedia from "$lib/components/SignMedia.svelte";
   import SourcePill from "$lib/components/SourcePill.svelte";
 
   type WordCard = {
@@ -71,56 +73,11 @@
   let selectedCardId = $state<string | null>(null);
   let currentPage = $state(1);
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function staticGifPreview(node: HTMLCanvasElement, url: string) {
-    let image: HTMLImageElement | null = null;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting || image) return;
-
-        image = new Image();
-        image.decoding = "async";
-        image.onload = () => {
-          const context = node.getContext("2d");
-          if (!context) return;
-
-          const previewSize = 150;
-          const scale = Math.max(
-            previewSize / image!.naturalWidth,
-            previewSize / image!.naturalHeight,
-          );
-          const width = image!.naturalWidth * scale;
-          const height = image!.naturalHeight * scale;
-
-          node.width = previewSize;
-          node.height = previewSize;
-          context.drawImage(
-            image!,
-            (previewSize - width) / 2,
-            (previewSize - height) / 2,
-            width,
-            height,
-          );
-          image!.src = "";
-          image = null;
-        };
-        image.src = url;
-      },
-      { rootMargin: "100px" },
-    );
-
-    observer.observe(node);
-
-    return {
-      update(nextUrl: string) {
-        url = nextUrl;
-      },
-      destroy() {
-        observer.disconnect();
-        if (image) image.src = "";
-      },
-    };
-  }
+  let retrying = $state(false);
+  let retryFailed = $state(false);
+  const isLoading = $derived(
+    retrying || navigating?.to?.url.pathname === page.url.pathname,
+  );
 
   function selectSource(source: Source) {
     selectedSource = selectedSource === source ? null : source;
@@ -153,6 +110,19 @@
     searchTimer = setTimeout(() => {
       navigateTo(selectedSource, selectedUnitId, 1, searchQuery);
     }, 250);
+  }
+
+  async function retryLoading() {
+    retrying = true;
+    retryFailed = false;
+    try {
+      await invalidateAll();
+    } catch (cause) {
+      console.error("Failed to retry dictionary load", cause);
+      retryFailed = true;
+    } finally {
+      retrying = false;
+    }
   }
 
   const bookIdToName: Record<string, string> = {
@@ -220,10 +190,12 @@
   <div class="row">
     <aside
       class="col-12 col-md-4 col-lg-3 p-3 sidebar-panel"
+      aria-label="Browse signs by source and unit"
     >
       <div class="d-flex flex-column gap-3">
         {#each sources as source (source.id)}
           <button
+            type="button"
             class="source-btn"
             data-source={source.id === "naturally" ? "SN" : source.id === "trueway" ? "TWA" : "MISCELLANEOUS"}
             aria-pressed={selectedSource === source.id}
@@ -245,13 +217,13 @@
         {/each}
 
         {#if selectedSource}
-          <div
+          <fieldset
             class="unit-panel"
             in:slide={{ duration: 260, easing: cubicOut }}
             out:fade={{ duration: 180 }}
           >
             <hr class="my-2" />
-            <p class="fw-bold mb-1 section-label">Units</p>
+            <legend class="h6 fw-bold mb-1 section-label">Units</legend>
             {#key selectedSource}
               <div
                 class="d-flex flex-column gap-2 unit-list"
@@ -263,6 +235,7 @@
                     class="btn text-start nav-button {selectedUnitId === unit
                       ? 'btn-dark'
                       : 'btn-outline-dark'}"
+                    aria-pressed={selectedUnitId === unit}
                     onclick={() => selectUnit(unit)}
                     in:fade={{ duration: 280, delay: 220 }}
                     out:fade={{ duration: 220 }}
@@ -272,7 +245,7 @@
                 {/each}
               </div>
             {/key}
-          </div>
+          </fieldset>
         {/if}
       </div>
     </aside>
@@ -295,45 +268,58 @@
             aria-label="Search signs"
           />
         </div>
-        <p class="text-muted content-subtitle mb-3">
-          {#if searchQuery.trim() && selectedSource && selectedUnitId}
-            Showing {data.total} item(s) matching "{searchQuery.trim()}"
-            in the selected source and unit.
-          {:else if searchQuery.trim() && selectedSource}
-            Showing {data.total} item(s) matching "{searchQuery.trim()}"
-            in the selected source.
-          {:else if searchQuery.trim()}
-            Showing {data.total} item(s) matching "{searchQuery.trim()}".
-          {:else if selectedSource && selectedUnitId}
-            Showing {data.total} item(s) from the selected source and
-            unit.
-          {:else if selectedSource}
-            Showing {data.total} item(s) from the selected source.
-          {:else}
-            Showing all {data.total} item(s).
-          {/if}
-        </p>
+        {#if data.loadError || retryFailed}
+          <div class="border rounded p-3 mb-3" role="alert">
+            <p class="mb-2">
+              {data.loadError ?? 'We couldn’t retrieve signs. Check your connection and try again.'}
+            </p>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              onclick={retryLoading}
+              disabled={retrying}
+            >
+              {retrying ? 'Retrying…' : 'Try again'}
+            </button>
+          </div>
+        {:else if isLoading}
+          <div
+            class="border rounded p-3 mb-3 d-flex align-items-center gap-2"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <span>Retrieving signs…</span>
+          </div>
+        {:else}
+          <p class="text-muted content-subtitle mb-3" role="status" aria-live="polite" aria-atomic="true">
+            {#if searchQuery.trim() && selectedSource && selectedUnitId}
+              Showing {data.total} item(s) matching "{searchQuery.trim()}"
+              in the selected source and unit.
+            {:else if searchQuery.trim() && selectedSource}
+              Showing {data.total} item(s) matching "{searchQuery.trim()}"
+              in the selected source.
+            {:else if searchQuery.trim()}
+              Showing {data.total} item(s) matching "{searchQuery.trim()}".
+            {:else if selectedSource && selectedUnitId}
+              Showing {data.total} item(s) from the selected source and
+              unit.
+            {:else if selectedSource}
+              Showing {data.total} item(s) from the selected source.
+            {:else}
+              Showing all {data.total} item(s).
+            {/if}
+          </p>
 
         {#if selectedCard}
-          <div class="border rounded p-3 mb-3 selected-sign-panel">
+          <section class="border rounded p-3 mb-3 selected-sign-panel" aria-labelledby="selected-sign-heading">
             <div class="row g-3">
               <div class="col-12 col-lg-6">
-                {#if selectedCard.gifUrl}
-                  <img
-                    src={selectedCard.gifUrl}
-                    alt={selectedCard.word}
-                    class="img-fluid rounded selected-gif"
-                  />
-                {:else}
-                  <div
-                    class="gif-placeholder gif-placeholder-large d-flex align-items-center justify-content-center text-muted"
-                  >
-                    GIF coming soon
-                  </div>
-                {/if}
+                <SignMedia src={selectedCard.gifUrl} word={selectedCard.word} variant="detail" />
               </div>
               <div class="col-12 col-lg-6 d-flex flex-column gap-2">
-                <h3 class="h5 m-0">{selectedCard.word}</h3>
+                <h2 id="selected-sign-heading" class="h5 m-0">{selectedCard.word}</h2>
                 {#if hasValue(selectedCard.gloss)}<div class="small">{selectedCard.gloss}</div>{/if}
                 <div><SourcePill source={pillSource(selectedCard.sourceId)} /></div>
                 {#if hasValue(selectedCard.unitName)}
@@ -379,12 +365,16 @@
                 </div>{/if}
               </div>
             </div>
-          </div>
+          </section>
         {/if}
 
         {#if data.signs.length === 0}
-          <p class="text-muted">No items match this filter yet.</p>
+          <div class="border rounded p-3" role="status" aria-live="polite">
+            <h2 class="h5">No signs found</h2>
+            <p class="mb-0">No signs match these filters. Try a different search or change the selected source or unit.</p>
+          </div>
         {:else}
+          <h2 class="visually-hidden">Signs</h2>
           <div class="cards-scroll">
             <div class="row g-3 cards-grid">
               {#each paginatedWordCards as card (card.id)}
@@ -398,22 +388,9 @@
                     onclick={() =>
                       (selectedCardId =
                         selectedCardId === card.id ? null : card.id)}
+                    aria-pressed={selectedCardId === card.id}
                   >
-                    {#if card.gifUrl}
-                      <div class="gif-thumb-wrapper">
-                        <canvas
-                          use:staticGifPreview={card.gifUrl}
-                          class="gif-thumb"
-                          aria-label={card.word}
-                        ></canvas>
-                      </div>
-                    {:else}
-                      <div
-                        class="gif-placeholder d-flex align-items-center justify-content-center text-muted"
-                      >
-                        GIF coming soon
-                      </div>
-                    {/if}
+                    <SignMedia src={card.gifUrl} word={card.word} variant="thumbnail" />
                     <div class="word-button fw-semibold">{card.word}</div>
                     {#if hasValue(card.gloss)}<div class="small">{card.gloss}</div>{/if}
                     <div><SourcePill source={pillSource(card.sourceId)} /></div>
@@ -434,6 +411,7 @@
                 type="button"
                 class="btn btn-outline-dark btn-sm"
                 disabled={currentPage === 1}
+                aria-label="Go to previous page"
                 onclick={() => navigateTo(selectedSource, selectedUnitId, currentPage - 1, searchQuery)}
               >
                 Previous
@@ -443,12 +421,14 @@
                 type="button"
                 class="btn btn-outline-dark btn-sm"
                 disabled={currentPage === totalPages}
+                aria-label="Go to next page"
                 onclick={() => navigateTo(selectedSource, selectedUnitId, currentPage + 1, searchQuery)}
               >
                 Next
               </button>
             </nav>
           {/if}
+        {/if}
         {/if}
 
       </div>
@@ -547,39 +527,6 @@
     cursor: help;
     text-decoration: underline dotted;
     text-underline-offset: 0.1em;
-  }
-
-  .gif-placeholder {
-    min-height: 160px;
-    border: 1px dashed var(--bs-border-color);
-    border-radius: 0.4rem;
-    font-size: clamp(0.85rem, 0.8rem + 0.2vw, 1rem);
-  }
-
-  .gif-placeholder-large {
-    min-height: 240px;
-  }
-
-  .gif-thumb-wrapper {
-    width: 150px;
-    height: 150px;
-    overflow: hidden;
-    margin: 0 auto;
-    border-radius: 0.4rem;
-  }
-
-  .gif-thumb {
-    width: 150px;
-    height: 150px;
-    object-fit: cover;
-    animation-play-state: paused;
-    animation-duration: 0s;
-  }
-  .selected-gif {
-    width: 100%;
-    height: auto;
-    max-height: 400px;
-    object-fit: contain;
   }
 
   @media (min-width: 768px) {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import AdSlot from '$lib/components/AdSlot.svelte';
   import { ADS_ENABLED_ON_SIGN_PAGES } from '$lib/adConfig';
+  import SignMedia from '$lib/components/SignMedia.svelte';
 
   let { data } = $props();
 
@@ -24,13 +25,7 @@
   <a href="/dictionary" class="btn btn-outline-secondary btn-sm mb-4">Back to dictionary</a>
   <div class="row g-4">
     <div class="col-12 col-lg-6">
-      {#if data.sign.gifUrl}
-        <img
-          src={data.sign.gifUrl}
-          alt={data.sign.gloss ? `${data.sign.word}, ${data.sign.gloss}` : data.sign.word}
-          class="img-fluid rounded sign-gif"
-        />
-      {/if}
+      <SignMedia src={data.sign.gifUrl} word={data.sign.word} variant="detail" />
     </div>
     <div class="col-12 col-lg-6">
       <h1 class="h2">{data.sign.word}</h1>
@@ -38,6 +33,7 @@
   </div>
 
   <section class="mt-4" aria-labelledby="sign-details-heading">
+    <h2 id="sign-details-heading" class="h4">Sign details</h2>
     <dl class="row g-2 sign-fields">
       {#if data.sign.gloss}<dt class="col-sm-4">Gloss</dt><dd class="col-sm-8">{data.sign.gloss}</dd>{/if}
       {#if sources.length > 0}<dt class="col-sm-4">Source{sources.length === 1 ? '' : 's'}</dt><dd class="col-sm-8">{sources.join(', ')}</dd>{/if}
@@ -78,13 +74,6 @@
 <style>
   .sign-page {
     max-width: 960px;
-  }
-
-  .sign-gif {
-    width: 100%;
-    max-height: 520px;
-    object-fit: contain;
-    background: var(--ocean-surface);
   }
 
   .sign-fields dt {

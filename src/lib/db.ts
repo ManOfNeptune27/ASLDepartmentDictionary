@@ -2,6 +2,12 @@ import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { TURSO_URL, TURSO_AUTH_TOKEN } from '$env/static/private';
 
+if (!TURSO_URL) {
+  throw new Error(
+    'TURSO_URL is not configured. Copy .env.example to .env, add your Turso database URL and auth token, then restart the dev server.',
+  );
+}
+
 export const db = createClient({
   url: TURSO_URL,
   authToken: TURSO_AUTH_TOKEN,
