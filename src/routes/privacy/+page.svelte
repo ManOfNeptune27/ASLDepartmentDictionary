@@ -2,13 +2,13 @@
 	<title>Privacy Policy | ASL Department Dictionary</title>
 	<meta
 		name="description"
-		content="How the ASL Department Dictionary handles account data, cookies, and advertising."
+		content="How the ASL Department Dictionary handles account data, sign reports, cookies, and advertising."
 	/>
 </svelte:head>
 
 <main class="policy">
 	<h1>Privacy Policy</h1>
-	<p class="updated">Last updated: September 20, 2026</p>
+	<p class="updated">Last updated: November 16, 2026</p>
 
 	<p>
 		This policy explains what information the ASL Department Dictionary
@@ -19,6 +19,15 @@
 	<p>
 		You do not need an account to search or view signs. We do not ask visitors for
 		their name, email address, or any other personal details.
+	</p>
+
+	<h2>Sign reports</h2>
+	<p>
+		Anyone can report a sign that looks wrong. The report stores the sign, the description
+		you write, and the time it was submitted. We do not ask for your name or email. Please
+		leave those out of the description. Teachers use the report to review the entry. Sending
+		a report does not change the published sign. We delete a report when it is no longer
+		needed for that review.
 	</p>
 
 	<h2>Teacher accounts</h2>

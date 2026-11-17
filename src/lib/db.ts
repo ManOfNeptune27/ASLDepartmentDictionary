@@ -79,4 +79,23 @@ export async function initDb() {
       created_at TEXT NOT NULL
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sign_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sign_id INTEGER NOT NULL,
+      sign_word TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL,
+      reviewed_at TEXT,
+      reviewer_username TEXT
+    )
+  `);
+
+  await db.execute(`CREATE INDEX IF NOT EXISTS sign_reports_sign_id_idx ON sign_reports(sign_id)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sign_reports_status_idx ON sign_reports(status)`);
+  await db.execute(
+    `CREATE INDEX IF NOT EXISTS sign_reports_created_at_idx ON sign_reports(created_at)`,
+  );
 }
