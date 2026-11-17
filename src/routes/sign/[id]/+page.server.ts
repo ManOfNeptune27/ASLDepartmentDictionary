@@ -1,10 +1,25 @@
-import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { error, fail } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 import { db, initDb } from '$lib/db';
 import {
   SIGN_CONTENT_FIELDS,
   SIGN_CONTENT_MIN_FILLED_FIELDS,
 } from '$lib/signContent';
+import {
+  countRecentReports,
+  insertSignReport,
+  isHoneypotFilled,
+  reportDescription,
+  reportDescriptionError,
+  REPORT_SUBMITTED_MESSAGE,
+  REPORT_WINDOW_LIMIT,
+} from '$lib/server/signReports';
+
+function signIdFromParam(value: string) {
+  if (!/^\d+$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
 
 function publicValue(value: unknown) {
   const text = String(value ?? '').trim();
@@ -120,4 +135,54 @@ export const load: PageServerLoad = async ({ params }) => {
     isContentReady,
     contentText,
   };
+};
+
+export const actions: Actions = {
+  report: async ({ request, params }) => {
+    const formData = await request.formData();
+    const description = reportDescription(formData.get('description'));
+
+    if (isHoneypotFilled(formData.get('leave_blank'))) {
+      return { reportSuccess: true, reportMessage: REPORT_SUBMITTED_MESSAGE };
+    }
+
+    const signId = signIdFromParam(params.id);
+    if (!signId) {
+      return fail(404, { reportError: 'This sign could not be found.', description });
+    }
+
+    await initDb();
+    const signResult = await db.execute({
+      sql: `SELECT id, word FROM signs WHERE id = ?`,
+      args: [signId],
+    });
+    const row = signResult.rows[0];
+    if (!row) {
+      return fail(404, { reportError: 'This sign could not be found.', description });
+    }
+
+    const descriptionError = reportDescriptionError(description);
+    if (descriptionError) {
+      return fail(400, { reportError: descriptionError, description });
+    }
+
+    if ((await countRecentReports(signId)) >= REPORT_WINDOW_LIMIT) {
+      return fail(429, {
+        reportError: 'This sign has received several reports in a short time. Please try again later.',
+        description,
+      });
+    }
+
+    const signWord = String(row.word ?? '').trim() || `Sign ${signId}`;
+    try {
+      await insertSignReport(signId, signWord, description);
+    } catch {
+      return fail(500, {
+        reportError: 'The report could not be saved. Please try again.',
+        description,
+      });
+    }
+
+    return { reportSuccess: true, reportMessage: REPORT_SUBMITTED_MESSAGE };
+  },
 };

@@ -4,6 +4,7 @@ import { sourceData, sources, type WordEntry } from '$lib';
 import { db, initDb } from '$lib/db';
 import { deleteGif, uploadGifBuffer } from '$lib/r2';
 import { hashPassword, isLoggedInUserAdmin, isTeacherAuthenticated } from '$lib/server/auth';
+import { countOpenReports } from '$lib/server/signReports';
 
 const allowedGifMimeTypes = ['image/gif'];
 const ADD_NEW_UNIT_VALUE = '__add_new_unit__';
@@ -63,7 +64,7 @@ function parseBookUnitPairs(formData: FormData) {
   return pairs;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, url }) => {
   await initDb();
 
   const signsResult = await db.execute(`
@@ -137,8 +138,22 @@ export const load: PageServerLoad = async ({ cookies }) => {
   const storageGB = totalStorageBytes / (1024 ** 3);
 
   const isAdmin = isLoggedInUserAdmin(cookies);
+  const signSearch = url.searchParams.get('q') ?? '';
+  const editParam = url.searchParams.get('edit') ?? '';
+  const editSignId = /^[1-9]\d*$/.test(editParam) ? Number(editParam) : null;
+  const openReportCount = await countOpenReports();
 
-  return { signs, sentences, unitsByBook, teachers, isAdmin, storageGB };
+  return {
+    signs,
+    sentences,
+    unitsByBook,
+    teachers,
+    isAdmin,
+    storageGB,
+    signSearch,
+    editSignId,
+    openReportCount,
+  };
 };
 
 export const actions: Actions = {
