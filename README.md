@@ -25,6 +25,18 @@ npm run dev
 npm run dev -- --open
 ```
 
+### Local database setup
+
+The dictionary reads signs from the shared Turso database. Before starting the app, copy `.env.example` to `.env` and set `TURSO_URL` and `TURSO_AUTH_TOKEN` using the connection details from the Turso dashboard.
+
+In PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env`, replace the example values with your Turso database URL and auth token, then restart the dev server. Do not commit `.env` or share its contents; it contains private credentials.
+
 ## Building
 
 To create a production version of your app:

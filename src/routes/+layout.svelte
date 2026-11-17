@@ -58,6 +58,7 @@
 </svelte:head>
 
 <div class="app-shell">
+	<a class="skip-link" href="#main-content">Skip to main content</a>
 	<header class="text-white py-3 app-header">
 		<div class="container-fluid d-flex align-items-center px-3">
 			<a href="/" class="text-decoration-none text-white">
@@ -66,7 +67,7 @@
 		</div>
 	</header>
 
-	<div class="app-content" bind:this={contentEl}>
+	<div id="main-content" class="app-content" tabindex="-1" bind:this={contentEl}>
 		{@render children()}
 	</div>
 

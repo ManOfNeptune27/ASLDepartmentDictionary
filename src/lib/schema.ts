@@ -71,6 +71,25 @@ export const sentenceSigns = sqliteTable(
   }),
 );
 
+export const signReports = sqliteTable(
+  'sign_reports',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    signId: integer('sign_id').notNull(),
+    signWord: text('sign_word').notNull(),
+    description: text('description').notNull(),
+    status: text('status').notNull().default('open'),
+    createdAt: text('created_at').notNull(),
+    reviewedAt: text('reviewed_at'),
+    reviewerUsername: text('reviewer_username'),
+  },
+  (table) => ({
+    signIndex: index('sign_reports_sign_id_idx').on(table.signId),
+    statusIndex: index('sign_reports_status_idx').on(table.status),
+    createdIndex: index('sign_reports_created_at_idx').on(table.createdAt),
+  }),
+);
+
 export const teachers = sqliteTable(
   'teachers',
   {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { applyAction, enhance } from "$app/forms";
+  import { tick, untrack } from "svelte";
   import CategoryPill from "$lib/components/CategoryPill.svelte";
   import SourcePill from "$lib/components/SourcePill.svelte";
 
@@ -25,7 +26,7 @@
   let unitSelectionByBook = $state<Record<string, string[]>>({});
   let newUnitByBook = $state<Record<string, string>>({});
   let showAssignmentPicker = $state(false);
-  let deleteSearch = $state("");
+  let deleteSearch = $state(untrack(() => data.signSearch ?? ""));
   let signFilter = $state("all");
   let signUnitFilter = $state("all");
   let signPage = $state(1);
@@ -38,6 +39,8 @@
   let batchResults = $state<{ filename: string; success: boolean; error?: string }[]>([]);
   let signName = $state("");
   let editingSignId = $state<number | null>(null);
+  let openedEditSignId = $state<number | null>(null);
+  let missingEditSign = $state(false);
   let editError = $state("");
   let showTeacherPassword = $state(false);
 
@@ -66,6 +69,37 @@
       editUnitSelectionByBook = next;
     }
   });
+
+  function openSignFromReport() {
+    const id = Number(data.editSignId);
+    if (!id || openedEditSignId === id) return;
+    openedEditSignId = id;
+    const sign = (data?.signs ?? []).find((item: { id: number }) => item.id === id);
+    if (!sign) {
+      missingEditSign = true;
+      queueMicrotask(() => {
+        document.getElementById("existing-signs")?.scrollIntoView({ block: "start" });
+      });
+      return;
+    }
+
+    missingEditSign = false;
+    deleteSearch = sign.word;
+    signFilter = "all";
+    signUnitFilter = "all";
+    startEditing(sign);
+
+    const word = normalizeSignName(sign.word);
+    const index = (data?.signs ?? [])
+      .filter((item: { word: string }) => normalizeSignName(item.word).includes(word))
+      .findIndex((item: { id: number }) => item.id === id);
+    const page = Math.floor(Math.max(index, 0) / signsPerPage) + 1;
+    queueMicrotask(async () => {
+      signPage = page;
+      await tick();
+      document.getElementById(`admin-sign-${id}`)?.scrollIntoView({ block: "end" });
+    });
+  }
 
   function startEditing(sign: any) {
     editingSignId = sign.id;
@@ -154,6 +188,10 @@
     signFilter;
     signUnitFilter;
     signPage = 1;
+  });
+
+  $effect(() => {
+    openSignFromReport();
   });
 
   $effect(() => {
@@ -417,7 +455,10 @@
     <div class="col-12 col-xl-9">
       <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
         <h2 class="h4 m-0">Teacher Admin Upload</h2>
-        <a class="btn btn-sm btn-outline-secondary" href="/logout">Log Out</a>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-sm btn-outline-primary" href="/admin/reports">Reports ({data.openReportCount ?? 0})</a>
+          <a class="btn btn-sm btn-outline-secondary" href="/logout">Log Out</a>
+        </div>
       </div>
       <p class="text-muted mb-4">Add a sign GIF and its ASL metadata.</p>
 
@@ -733,7 +774,10 @@
       </form>
 
       <!-- Existing Signs -->
-      <h3 class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
+      <h3 id="existing-signs" class="h5 mb-3">Existing Signs ({data?.signs?.length ?? 0})</h3>
+      {#if missingEditSign}
+        <p class="alert alert-warning" role="status">That sign is no longer in the dictionary.</p>
+      {/if}
 
       <div class="row g-2 mb-3">
         <div class="col-12 col-md-6">
@@ -789,7 +833,7 @@
         {/if}
         <div class="row g-3">
           {#each paginatedSigns as sign}
-            <div class="col-12 col-sm-6 col-xl-4">
+            <div class="col-12 col-sm-6 col-xl-4" id={`admin-sign-${sign.id}`}>
               <div class="border rounded p-3 h-100 d-flex flex-column gap-2">
                 {#if sign.gifUrl}
                   <img src={sign.gifUrl} alt={sign.word} class="admin-gif-thumb rounded" loading="lazy" />

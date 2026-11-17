@@ -2,6 +2,12 @@ import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { TURSO_URL, TURSO_AUTH_TOKEN } from '$env/static/private';
 
+if (!TURSO_URL) {
+  throw new Error(
+    'TURSO_URL is not configured. Copy .env.example to .env, add your Turso database URL and auth token, then restart the dev server.',
+  );
+}
+
 export const db = createClient({
   url: TURSO_URL,
   authToken: TURSO_AUTH_TOKEN,
@@ -73,4 +79,23 @@ export async function initDb() {
       created_at TEXT NOT NULL
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sign_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sign_id INTEGER NOT NULL,
+      sign_word TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL,
+      reviewed_at TEXT,
+      reviewer_username TEXT
+    )
+  `);
+
+  await db.execute(`CREATE INDEX IF NOT EXISTS sign_reports_sign_id_idx ON sign_reports(sign_id)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS sign_reports_status_idx ON sign_reports(status)`);
+  await db.execute(
+    `CREATE INDEX IF NOT EXISTS sign_reports_created_at_idx ON sign_reports(created_at)`,
+  );
 }
