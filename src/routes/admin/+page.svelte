@@ -146,14 +146,29 @@
     ),
   );
 
-  const filteredSigns = $derived(
-    (data?.signs ?? []).filter((sign: any) => {
+  function modifiedTime(sign: { submittedAt?: string }) {
+    const time = Date.parse(sign.submittedAt ?? "");
+    return Number.isNaN(time) ? 0 : time;
+  }
+
+  function formatModified(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Unknown";
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  }
+
+  const filteredSigns = $derived.by(() => {
+    const matches = (data?.signs ?? []).filter((sign: any) => {
       const matchesSearch = normalizeSignName(sign.word).includes(
         normalizeSignName(deleteSearch),
       );
       const isDuplicate = duplicateNames.has(normalizeSignName(sign.word));
       const matchesFilter =
         signFilter === "all" ||
+        signFilter === "last-modified" ||
         (signFilter === "duplicates"
           ? isDuplicate
           : sign.books?.some((book: any) => book.book === signFilter));
@@ -163,11 +178,20 @@
           book.book === signFilter && book.unit === signUnitFilter,
         );
       return matchesSearch && matchesFilter && matchesUnit;
-    }),
-  );
+    });
+
+    if (signFilter !== "last-modified") return matches;
+
+    return matches
+      .slice()
+      .sort((a: { submittedAt?: string; id: number }, b: { submittedAt?: string; id: number }) =>
+        modifiedTime(b) - modifiedTime(a) || b.id - a.id,
+      )
+      .slice(0, signsPerPage);
+  });
 
   const signUnitOptions = $derived(
-    signFilter !== "all" && signFilter !== "duplicates"
+    signFilter !== "all" && signFilter !== "duplicates" && signFilter !== "last-modified"
       ? (data?.unitsByBook?.[signFilter] ?? [])
       : [],
   );
@@ -195,7 +219,7 @@
   });
 
   $effect(() => {
-    if (signFilter === "all" || signFilter === "duplicates") signUnitFilter = "all";
+    if (signFilter === "all" || signFilter === "duplicates" || signFilter === "last-modified") signUnitFilter = "all";
   });
 
   $effect(() => {
@@ -786,6 +810,7 @@
         <div class="col-12 col-md-3">
           <select class="form-select" bind:value={signFilter} aria-label="Filter existing signs">
             <option value="all">All signs</option>
+            <option value="last-modified">Last modified</option>
             <option value="duplicates">Duplicate Signs</option>
             <option value="Signing Naturally">SN</option>
             <option value="True Way ASL">TWA</option>
@@ -806,6 +831,12 @@
           </select>
         </div>
       </div>
+      {#if signFilter === "last-modified"}
+        <p class="small text-muted">
+          Showing the {filteredSigns.length} most recently modified {filteredSigns.length === 1 ? "sign" : "signs"}, limited to one page.
+          Editing a sign moves it to the front of this list.
+        </p>
+      {/if}
 
       {#if filteredSigns.length === 0}
         <p class="text-muted">No signs match your search.</p>
@@ -844,6 +875,9 @@
                 {/if}
                 <div class="fw-semibold">{sign.word}</div>
                 <div class="small text-muted">{sign.gloss}</div>
+                {#if signFilter === "last-modified"}
+                  <div class="small text-muted">Modified {formatModified(sign.submittedAt)}</div>
+                {/if}
                 <div class="small text-muted">
                   {#each sign.books as b}
                     <span class="me-1"><SourcePill source={pillSource(b.book)} /> {#if b.unit === "N/A"}<span class="text-muted">N/A</span>{:else}<CategoryPill category={b.unit} />{/if}</span>
