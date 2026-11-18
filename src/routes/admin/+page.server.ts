@@ -533,8 +533,8 @@ export const actions: Actions = {
     }
     await initDb();
     await db.execute({
-      sql: `UPDATE signs SET word = ?, gloss = ?, handshape = ?, location = ?, movement = ?, palm_orientation = ?, non_manual_signals = ? WHERE id = ?`,
-      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, signId]
+      sql: `UPDATE signs SET word = ?, gloss = ?, handshape = ?, location = ?, movement = ?, palm_orientation = ?, non_manual_signals = ?, submitted_at = ? WHERE id = ?`,
+      args: [word, gloss, handshape, location, movement, palmOrientation, nonManualSignals, new Date().toISOString(), signId]
     });
 
     // Update book/unit pairs
