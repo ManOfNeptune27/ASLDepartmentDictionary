@@ -124,7 +124,7 @@
     <div class="sign-media-message" role={variant === 'detail' ? 'status' : undefined}>
       <span>Sign media couldn’t be loaded.</span>
       {#if variant === 'detail'}
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick={retry}>
+        <button type="button" class="btn btn-outline-secondary sign-media-retry" onclick={retry}>
           Try again
         </button>
       {/if}
@@ -134,9 +134,11 @@
 
 <style>
   .sign-media {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    max-width: 100%;
     overflow: hidden;
     border-radius: 0.4rem;
     background: var(--ocean-bg);
@@ -145,7 +147,7 @@
   }
 
   .sign-media-thumbnail {
-    width: 150px;
+    width: min(150px, 100%);
     height: 150px;
     margin: 0 auto;
   }
@@ -156,7 +158,7 @@
   }
 
   canvas {
-    width: 150px;
+    width: 100%;
     height: 150px;
     object-fit: cover;
   }
@@ -164,17 +166,39 @@
   .sign-media-image {
     display: block;
     width: 100%;
+    max-width: 100%;
+    height: auto;
     max-height: 400px;
     object-fit: contain;
   }
 
   .sign-media-message {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
+    gap: 0.75rem;
+    max-width: 100%;
     padding: 1rem;
+    background: var(--ocean-bg);
+    overflow-wrap: anywhere;
+  }
+
+  .sign-media-retry {
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .sign-media-detail {
+      min-height: 160px;
+    }
+
+    .sign-media-image {
+      max-height: min(42vh, 280px);
+    }
   }
 
   .sign-media-ready .sign-media-message {

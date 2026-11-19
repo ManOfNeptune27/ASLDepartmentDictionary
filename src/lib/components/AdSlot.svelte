@@ -30,5 +30,7 @@
 <style>
   .ad-slot {
     min-height: 90px;
+    max-width: 100%;
+    overflow: hidden;
   }
 </style>

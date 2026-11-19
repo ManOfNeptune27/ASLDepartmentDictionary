@@ -72,7 +72,7 @@
 	</div>
 
 	<footer class="text-center py-3 mt-4 border-top">
-		<nav class="d-flex flex-wrap justify-content-center gap-3" aria-label="Site information">
+		<nav class="d-flex flex-wrap justify-content-center px-3" aria-label="Site information">
 			<a href="/about">About</a>
 			<a href="/quiz">Test Your Knowledge</a>
 			<a href="/contact">Contact</a>
@@ -97,5 +97,23 @@
 
 	.app-title {
 		font-size: clamp(1.35rem, 1.1rem + 0.9vw, 2rem);
+		line-height: 1.2;
+	}
+
+	header a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.75rem;
+	}
+
+	footer nav {
+		gap: 0.35rem 0.85rem;
+	}
+
+	footer nav a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.75rem;
+		padding: 0.35rem 0.15rem;
 	}
 </style>
