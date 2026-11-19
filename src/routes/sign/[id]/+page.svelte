@@ -22,7 +22,7 @@
 </svelte:head>
 
 <main class="container py-4 sign-page">
-  <a href="/dictionary" class="btn btn-outline-secondary btn-sm mb-4">Back to dictionary</a>
+  <a href="/dictionary" class="btn btn-outline-secondary sign-back mb-4">Back to dictionary</a>
   <div class="row g-4">
     <div class="col-12 col-lg-6">
       <SignMedia src={data.sign.gifUrl} word={data.sign.word} variant="detail" />
@@ -54,7 +54,7 @@
     <details class="report-panel" open={Boolean(form?.reportError)}>
       <summary
         id="report-heading"
-        class="btn btn-outline-warning btn-sm"
+        class="btn btn-outline-warning"
         aria-label={`Report inaccurate information for ${data.sign.word}`}
       >
         Report inaccurate information
@@ -98,10 +98,10 @@
         {#each data.relatedGroups as group}
           <div>
             <h3 class="h6 mb-2">{group.label}</h3>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap related-sign-list">
               {#each group.signs as related}
                 {#if related.word}
-                  <a class="btn btn-outline-secondary btn-sm" href={`/sign/${related.id}`}>{related.word}</a>
+                  <a class="btn btn-outline-secondary related-sign" href={`/sign/${related.id}`}>{related.word}</a>
                 {/if}
               {/each}
             </div>
@@ -119,14 +119,55 @@
 <style>
   .sign-page {
     max-width: 960px;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .sign-page h1,
+  .sign-page h2,
+  .sign-page h3,
+  .sign-fields dt,
+  .sign-fields dd {
+    overflow-wrap: anywhere;
+  }
+
+  .sign-back,
+  .report-panel summary,
+  .related-sign,
+  .sign-page form button[type="submit"] {
+    min-height: 2.75rem;
+  }
+
+  .sign-back,
+  .report-panel summary,
+  .related-sign {
+    white-space: normal;
+  }
+
+  .sign-fields {
+    font-size: 1rem;
   }
 
   .sign-fields dt {
     color: var(--ocean-text-muted);
   }
 
+  .sign-fields dd {
+    margin-bottom: 0.35rem;
+  }
+
+  .related-sign-list {
+    gap: 0.75rem;
+  }
+
+  .related-sign {
+    max-width: 100%;
+    text-align: left;
+  }
+
   .report-panel summary {
     list-style: none;
+    max-width: 100%;
   }
 
   .report-panel summary::-webkit-details-marker {
@@ -139,5 +180,29 @@
     width: 1px;
     height: 1px;
     overflow: hidden;
+  }
+
+  @media (max-width: 575.98px) {
+    .sign-page {
+      padding-top: 1rem;
+      padding-bottom: 1.5rem;
+    }
+
+    .sign-back,
+    .report-panel summary,
+    .sign-page form button[type="submit"] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .sign-fields dd {
+      margin-bottom: 0.85rem;
+    }
+
+    .sign-page h1 {
+      font-size: 1.75rem;
+    }
   }
 </style>

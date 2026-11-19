@@ -329,6 +329,11 @@ footer {
     border-right: 0;
     border-bottom: 1px solid var(--ocean-border);
   }
+
+  .source-btn,
+  .nav-button {
+    min-height: 2.75rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -172,6 +172,20 @@
     }
   });
 
+  $effect(() => {
+    const unitId = selectedUnitId;
+    if (!unitId) return;
+    queueMicrotask(() => {
+      const selected = document.querySelector(
+        ".unit-list .nav-button[aria-pressed='true']",
+      );
+      const list = selected?.closest(".unit-list");
+      if (!(selected instanceof HTMLElement) || !(list instanceof HTMLElement)) return;
+      if (list.scrollHeight <= list.clientHeight) return;
+      selected.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
+  });
+
   const selectedCard = $derived(
     wordCards.find((card: WordCard) => card.id === selectedCardId) ??
       null,
@@ -189,7 +203,7 @@
 <div class="container-fluid">
   <div class="row">
     <aside
-      class="col-12 col-md-4 col-lg-3 p-3 sidebar-panel"
+      class="col-12 col-md-4 col-lg-3 sidebar-panel"
       aria-label="Browse signs by source and unit"
     >
       <div class="d-flex flex-column gap-3">
@@ -226,7 +240,7 @@
             <legend class="h6 fw-bold mb-1 section-label">Units</legend>
             {#key selectedSource}
               <div
-                class="d-flex flex-column gap-2 unit-list"
+                class="unit-list"
                 in:fade={{ duration: 320, delay: 180 }}
                 out:fade={{ duration: 240 }}
               >
@@ -250,7 +264,7 @@
       </div>
     </aside>
 
-    <main class="col p-4 overflow-hidden">
+    <main class="col gallery-main">
       <div
         in:fly={{ y: 18, duration: 500, opacity: 0 }}
         out:fade={{ duration: 300 }}
@@ -275,7 +289,7 @@
             </p>
             <button
               type="button"
-              class="btn btn-outline-secondary btn-sm"
+              class="btn btn-outline-secondary"
               onclick={retryLoading}
               disabled={retrying}
             >
@@ -406,20 +420,20 @@
             </div>
           </div>
           {#if totalPages > 1}
-            <nav class="d-flex align-items-center justify-content-center gap-3 mt-4" aria-label="Gallery pages">
+            <nav class="gallery-pager mt-4" aria-label="Gallery pages">
               <button
                 type="button"
-                class="btn btn-outline-dark btn-sm"
+                class="btn btn-outline-dark"
                 disabled={currentPage === 1}
                 aria-label="Go to previous page"
                 onclick={() => navigateTo(selectedSource, selectedUnitId, currentPage - 1, searchQuery)}
               >
                 Previous
               </button>
-              <span class="small text-muted">Page {currentPage} of {totalPages}</span>
+              <span class="page-status text-muted">Page {currentPage} of {totalPages}</span>
               <button
                 type="button"
-                class="btn btn-outline-dark btn-sm"
+                class="btn btn-outline-dark"
                 disabled={currentPage === totalPages}
                 aria-label="Go to next page"
                 onclick={() => navigateTo(selectedSource, selectedUnitId, currentPage + 1, searchQuery)}
@@ -439,6 +453,20 @@
 <style>
   .sidebar-panel {
     min-height: auto;
+    min-width: 0;
+    padding: 1rem;
+  }
+
+  .unit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .gallery-main {
+    min-width: 0;
+    padding: 1.5rem;
+    overflow-x: clip;
   }
 
   .section-label,
@@ -452,9 +480,14 @@
 
   .nav-button,
   .word-button {
-    font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
-    padding: clamp(0.4rem, 0.35rem + 0.2vw, 0.6rem)
-      clamp(0.6rem, 0.5rem + 0.35vw, 0.9rem);
+    font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+    padding: 0.55rem 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .nav-button {
+    min-height: 2.75rem;
+    white-space: normal;
   }
 
   .gif-card {
@@ -464,6 +497,17 @@
   .card-button {
     text-align: left;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .sign-card-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 2.75rem;
+    white-space: normal;
   }
 
   .selected-card {
@@ -478,7 +522,8 @@
 
   .gallery-search {
     max-width: 320px;
-    font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
+    min-height: 2.75rem;
+    font-size: 1rem;
   }
 
   .cards-scroll {
@@ -491,6 +536,32 @@
   .cards-grid {
     margin-left: 0;
     margin-right: 0;
+  }
+
+  .cards-grid > [class*="col-"] {
+    min-width: 0;
+  }
+
+  .selected-sign-panel,
+  .gif-card {
+    overflow-wrap: anywhere;
+  }
+
+  .gallery-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .gallery-main .btn,
+  .gallery-pager .btn {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+  }
+
+  .page-status {
+    font-size: 1rem;
   }
 
   .unit-panel,
@@ -532,6 +603,58 @@
   @media (min-width: 768px) {
     .sidebar-panel {
       min-height: 100vh;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .sidebar-panel {
+      padding: 0.75rem;
+    }
+
+    .gallery-main {
+      padding: 1rem 0.75rem 1.25rem;
+    }
+
+    .gallery-search {
+      max-width: none;
+      width: 100%;
+    }
+
+    .unit-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      max-height: 14rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding-right: 0.15rem;
+    }
+
+    .unit-list .nav-button {
+      flex: 1 1 calc(50% - 0.5rem);
+    }
+
+    .cards-scroll {
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
+    }
+
+    .content-subtitle,
+    .selected-sign-panel .small,
+    .gif-card .small {
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .gallery-pager {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .page-status {
+      grid-column: 1 / -1;
+      order: -1;
+      text-align: center;
     }
   }
 </style>
